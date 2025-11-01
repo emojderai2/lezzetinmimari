@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Lezzetin Mimarı</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- AOS (Animate on Scroll) Library -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .hero-clip {
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+        }
+        @media (min-width: 768px) {
+            .hero-clip {
+                /* "Mimar" efektini veren çapraz kesim */
+                clip-path: polygon(0 0, 100% 0, 100% 100%, 30% 100%);
+            }
+        }
+        /* Styles from admin.html for Admin Panel Component */
+        .ghost { opacity: 0.4; background: #f0f0f0; }
+        .sortable-chosen { background-color: #f8f8f8; }
+        .toast {
+            visibility: hidden;
+            min-width: 250px;
+            margin-left: -125px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1000; /* Increased z-index */
+            left: 50%;
+            bottom: 30px;
+            font-size: 17px;
+            opacity: 0;
+            transition: opacity 0.5s, visibility 0.5s, bottom 0.5s;
+        }
+        .toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
+        .toast.success { background-color: #059669; }
+        .toast.error { background-color: #dc2626; }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.78.0",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/"
+  }
+}
+</script>
+<!-- Tailwind Renk Ayarları for Admin Panel -->
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    'brand-dark': '#1e202a',
+                    'brand-gold': '#b98d4a',
+                    'brand-light': '#f8f6f2',
+                }
+            }
+        }
+    }
+</script>
+</head>
+<body class="bg-[#f8f6f2]">
+    <div id="root"></div>
+    
+    <!-- AOS (Animate on Scroll) Script -->
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    
+    <!-- Sürükle-Bırak Kütüphanesi for Admin Panel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+
+    <!-- SUPABASE KÜTÜPHANESİ for Admin Panel (global window.supabase) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- React App Entry Point -->
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>

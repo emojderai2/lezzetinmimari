@@ -1,0 +1,5 @@
+{
+  "name": "Lezzetin Mimarı Landing Page",
+  "description": "A dynamic landing page for a restaurant called 'Lezzetin Mimarı', built with React and Tailwind CSS, fetching content from a Supabase backend.",
+  "requestFramePermissions": []
+}
