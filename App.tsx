@@ -101,12 +101,31 @@ const App: React.FC = () => {
 
   // Render Main Page Error State
   if (error) {
+    const isConfigError = error.includes("Supabase anahtarları");
+
     return (
       <div className="flex items-center justify-center h-screen bg-[#f8f6f2] text-[#1e202a]">
-        <div className="text-center p-4">
-          <h1 className="text-3xl font-bold mb-4">Bir Hata Oluştu</h1>
-          <p>{error}</p>
-          <p className="mt-4">Lütfen daha sonra tekrar deneyin.</p>
+        <div className="text-center p-8 bg-white shadow-xl rounded-2xl max-w-2xl mx-4">
+          <i className={`fas ${isConfigError ? 'fa-cogs' : 'fa-exclamation-triangle'} text-5xl text-red-500 mb-4`}></i>
+          <h1 className="text-3xl font-bold mb-4 text-brand-dark">
+            {isConfigError ? "Yapılandırma Gerekli" : "Bir Hata Oluştu"}
+          </h1>
+          <p className="text-gray-700 text-lg">{error}</p>
+          
+          {isConfigError && (
+             <div className="mt-6 text-left bg-gray-100 p-4 rounded-lg border-l-4 border-brand-gold">
+                <p className="font-semibold text-gray-800">Ne Yapmalısınız?</p>
+                <p className="mt-2 text-sm text-gray-600">
+                  AI Studio'da önizleme yapabilmek için, projenizdeki 
+                  <code className="bg-gray-300 text-gray-800 px-1 py-0.5 rounded-md mx-1 font-mono">services/supabaseService.ts</code> 
+                  dosyasını açıp kendi Supabase anahtarlarınızı girmeniz gerekmektedir. Bu işlem Netlify'daki yayınlanan sitenizi etkilemez.
+                </p>
+             </div>
+          )}
+          
+          {!isConfigError && (
+            <p className="mt-4 text-gray-500">Lütfen daha sonra tekrar deneyin veya internet bağlantınızı kontrol edin.</p>
+          )}
         </div>
       </div>
     );

@@ -1,8 +1,14 @@
 import React, { useEffect, useRef } from 'react';
 
-// FIX: Add global declarations for custom window properties and CDN libraries to satisfy TypeScript.
-// This resolves errors about properties not existing on the `window` object.
+// FIX: Add global declarations for custom window properties, CDN libraries, and Vite environment variables to satisfy TypeScript.
+// This resolves errors about properties not existing on the `window` or `import.meta.env` objects.
 declare global {
+  interface ImportMeta {
+    readonly env: {
+      readonly VITE_SUPABASE_URL: string;
+      readonly VITE_SUPABASE_ANON_KEY: string;
+    };
+  }
   interface Window {
     supabase: any;
     escapeHTML: (str: string | null | undefined) => string;
@@ -21,6 +27,14 @@ declare const Sortable: any;
 // The supabase client is loaded from a script tag and attached to window.
 // The original `declare const supabase: any;` is removed as we now declare it on the Window interface.
 
+// ===================================================================================
+// YAYINLAMA İÇİN GÜVENLİ ANAHTAR YÖNETİMİ (Yönetici Paneli)
+// LÜTFEN `services/supabaseService.ts` dosyasındaki anahtarları da güncelleyin.
+// ===================================================================================
+const LOCAL_DEV_SUPABASE_URL = "https://wiaflghvicpzvmutobeb.supabase.co";
+const LOCAL_DEV_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpYWZsZ2h2aWNwenZtdXRvYmViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5ODY1OTMsImV4cCI6MjA3NzU2MjU5M30.CBo49hch7FlHSj9IwrDs0lSRuEMOfvqe3KFakvP7ji0";
+
+
 const AdminPanel: React.FC = () => {
   const isInitialized = useRef(false);
 
@@ -37,8 +51,24 @@ const AdminPanel: React.FC = () => {
     // --- Start of original script from admin.html ---
 
     // ===== SUPABASE BAĞLANTISI =====
-    const supabaseUrl = 'https://wiaflghvicpzvmutobeb.supabase.co';
-    const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndpYWZsZ2h2aWNwenZtdXRvYmViIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE5ODY1OTMsImV4cCI6MjA3NzU2MjU5M30.CBo49hch7FlHSj9IwrDs0lSRuEMOfvqe3KFakvP7ji0';
+    // FINAL FIX: Check if `import.meta.env` exists before trying to access it.
+    const supabaseUrl = (typeof import.meta.env !== 'undefined' && import.meta.env.VITE_SUPABASE_URL) || LOCAL_DEV_SUPABASE_URL;
+    const supabaseKey = (typeof import.meta.env !== 'undefined' && import.meta.env.VITE_SUPABASE_ANON_KEY) || LOCAL_DEV_SUPABASE_ANON_KEY;
+
+    // Check if environment variables are set. If not, show an error and stop.
+    if (!supabaseUrl || !supabaseKey || supabaseUrl.includes("BURAYA")) {
+        console.error("Supabase environment variables not set!");
+        const authScreen = document.getElementById('auth-screen');
+        if (authScreen) {
+            authScreen.innerHTML = `
+                <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md text-center">
+                    <h1 class="text-2xl font-bold text-red-600 mb-4">Yapılandırma Hatası</h1>
+                    <p class="text-gray-700">Lütfen 'components/AdminPanel.tsx' dosyasındaki yer tutucu Supabase anahtarlarını doldurun.</p>
+                </div>
+            `;
+        }
+        return; // Stop execution of the script
+    }
     
     // FIX: Property 'supabase' does not exist on type 'Window & typeof globalThis'.
     // The `window.supabase` is now declared in the global interface.
