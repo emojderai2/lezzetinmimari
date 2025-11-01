@@ -30,6 +30,7 @@ export interface MenuItem {
   id: number;
   category_id: number;
   name: string;
+  description: string | null;
   price: number | null;
   image_url: string | null;
   position: number;

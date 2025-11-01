@@ -19,6 +19,8 @@ declare global {
     handleItemDelete: (itemId: number, itemName: string, imageUrl: string | null) => Promise<void>;
     handleItemNameUpdate: (inputEl: HTMLInputElement) => Promise<void>;
     handleItemPriceUpdate: (inputEl: HTMLInputElement) => Promise<void>;
+    handleItemImageUrlUpdate: (inputEl: HTMLInputElement) => Promise<void>;
+    handleItemDescriptionUpdate: (textareaEl: HTMLTextAreaElement) => Promise<void>;
   }
 }
 
@@ -163,95 +165,6 @@ const AdminPanel: React.FC = () => {
         }
     }
 
-    // ===== RESİM YÜKLEME İŞLEMLERİ =====
-    
-    // Genel resim yükleme fonksiyonu
-    async function handleFileUpload(file: File) {
-        if (!file) return null;
-
-        const fileName = `${Date.now()}-${file.name}`;
-        const filePath = `${fileName}`; 
-
-        try {
-            const { data, error } = await supabaseClient
-                .storage
-                .from('uploads')
-                .upload(filePath, file);
-
-            if (error) throw error;
-
-            const { data: publicData } = supabaseClient
-                .storage
-                .from('uploads')
-                .getPublicUrl(filePath);
-
-            if (!publicData) throw new Error("Dosya yüklendi ancak URL alınamadı.");
-
-            showToast('Resim başarıyla yüklendi.', 'success');
-            return publicData.publicUrl;
-
-        } catch (error: any) {
-            console.error('Resim yükleme hatası:', error.message);
-            showToast(`Resim yüklenemedi: ${error.message}`, 'error');
-            return null;
-        }
-    }
-
-    // Belirli bir resim URL'sini depodan silme
-    async function deleteStorageFile(publicUrl: string) {
-        if (!publicUrl) return;
-        
-        try {
-            const urlParts = publicUrl.split('/uploads/');
-            if (urlParts.length < 2) return;
-            
-            const filePath = urlParts[1];
-            
-            const { error } = await supabaseClient
-                .storage
-                .from('uploads')
-                .remove([filePath]);
-
-            if (error) {
-                console.warn(`Depodan resim silinirken hata (belki zaten yoktu): ${filePath}`, error.message);
-            } else {
-                console.log(`Depodan silindi: ${filePath}`);
-            }
-        } catch (error: any) {
-            console.error('Depodan silme hatası:', error.message);
-        }
-    }
-
-    function setupImageUploadListeners() {
-        const setupListener = (fileInputId: string, urlInputId: string, previewId: string) => {
-            const fileInput = document.getElementById(fileInputId) as HTMLInputElement;
-            const urlInput = document.getElementById(urlInputId) as HTMLInputElement;
-            const preview = document.getElementById(previewId) as HTMLImageElement;
-            
-            fileInput?.addEventListener('change', async (e) => {
-                const target = e.target as HTMLInputElement;
-                const file = target.files?.[0];
-                if (file) {
-                    const url = await handleFileUpload(file);
-                    if (url) {
-                        if(urlInput) urlInput.value = url;
-                        if(preview) preview.src = url;
-                    }
-                }
-            });
-            urlInput?.addEventListener('input', (e) => {
-                const target = e.target as HTMLInputElement;
-                if(preview) preview.src = target.value;
-            });
-             (document.querySelector(`button[type="button"][onclick*="${fileInputId}"]`) as HTMLButtonElement)
-                ?.addEventListener('click', () => fileInput.click());
-        };
-
-        setupListener('hero_image_file', 'hero_image_url', 'hero_image_preview');
-        setupListener('event_card1_file', 'event_card1_image_url', 'event_card1_preview');
-        setupListener('event_card2_file', 'event_card2_image_url', 'event_card2_preview');
-    }
-
     // ===== SİTE AYARLARI (site_config) İŞLEMLERİ =====
     const configFields = [
         'hero_title', 'hero_subtitle', 'hero_image_url',
@@ -275,7 +188,7 @@ const AdminPanel: React.FC = () => {
                     if (el) el.value = data[id] || '';
                     if (id.endsWith('_url')) {
                         const previewEl = document.getElementById(id.replace('_url', '_preview')) as HTMLImageElement;
-                        if (previewEl) previewEl.src = data[id] || '';
+                        if (previewEl) previewEl.src = data[id] || 'https://placehold.co/100x100/eee/ccc?text=Görsel';
                     }
                 });
             }
@@ -377,7 +290,7 @@ const AdminPanel: React.FC = () => {
                     <i class="fas fa-arrows-alt handle text-gray-400 cursor-move" title="Kategoriyi Sürükle"></i>
                     <input type="text" value="${window.escapeHTML(category.name)}" class="text-xl font-bold text-brand-dark bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none" data-category-id="${category.id}">
                 </div>
-                <button class="text-red-600 hover:text-red-800" title="Kategoriyi Sil">
+                <button class="text-red-600 hover:text-red-800 js-category-delete" title="Kategoriyi Sil">
                     <i class="fas fa-trash-alt"></i>
                 </button>
             </div>
@@ -388,7 +301,7 @@ const AdminPanel: React.FC = () => {
                 <h4 class="font-semibold text-gray-600 mb-2">Yeni Ürün Ekle (${window.escapeHTML(category.name)})</h4>
                 <div class="flex flex-col md:flex-row gap-2">
                     <input type="text" name="itemName" placeholder="Ürün Adı" required class="flex-grow p-2 border rounded-lg">
-                    <input type="file" name="itemImage" accept="image/*" class="text-sm">
+                    <input type="text" name="itemImageUrl" placeholder="Görsel URL'i" class="flex-grow p-2 border rounded-lg">
                     <button type="submit" class="bg-blue-500 text-white py-2 px-3 rounded-lg text-sm hover:bg-blue-600">
                         <i class="fas fa-plus"></i> Ekle
                     </button>
@@ -398,7 +311,7 @@ const AdminPanel: React.FC = () => {
         // FIX: Property 'handle...' does not exist on type 'Window & typeof globalThis'.
         // The `window.handle...` functions are now declared on the global interface.
         categoryEl.querySelector('input[type="text"]')?.addEventListener('change', (e) => window.handleCategoryNameUpdate(e.target as HTMLInputElement));
-        categoryEl.querySelector('button.text-red-600')?.addEventListener('click', () => window.handleCategoryDelete(category.id, category.name));
+        categoryEl.querySelector('.js-category-delete')?.addEventListener('click', () => window.handleCategoryDelete(category.id, category.name));
         categoryEl.querySelector('form')?.addEventListener('submit', (e) => window.handleItemAdd(e, category.id));
 
         categoriesContainer.appendChild(categoryEl);
@@ -436,14 +349,16 @@ const AdminPanel: React.FC = () => {
         // FIX: Property 'escapeHTML'/'escapeJS' does not exist on type 'Window & typeof globalThis'.
         // The `window.escape...` functions are now declared on the global interface.
         return `
-            <div class="bg-white border rounded-lg shadow-sm flex items-center p-2 space-x-2 item-card" data-item-id="${item.id}">
-                <i class="fas fa-arrows-alt handle text-gray-400 cursor-move" title="Ürünü Sürükle"></i>
-                <img src="${item.image_url || 'https://placehold.co/100x100/eee/ccc?text=Görsel'}" alt="${window.escapeHTML(item.name)}" class="w-16 h-16 object-cover rounded-md bg-gray-200">
+            <div class="bg-white border rounded-lg shadow-sm flex items-start p-2 space-x-2 item-card" data-item-id="${item.id}">
+                <i class="fas fa-arrows-alt handle text-gray-400 cursor-move pt-1" title="Ürünü Sürükle"></i>
+                <img src="${item.image_url || 'https://placehold.co/100x100/eee/ccc?text=Görsel'}" alt="${window.escapeHTML(item.name)}" class="w-16 h-16 object-cover rounded-md bg-gray-200 flex-shrink-0">
                 <div class="flex-grow">
                     <input type="text" value="${window.escapeHTML(item.name)}" class="font-semibold w-full bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none" data-item-id="${item.id}" onchange="window.handleItemNameUpdate(this)">
                     <input type="number" step="0.01" value="${item.price || ''}" placeholder="Fiyat (örn: 150.50)" class="text-sm text-gray-600 w-full mt-1 bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none" data-item-id="${item.id}" onchange="window.handleItemPriceUpdate(this)">
+                    <textarea placeholder="Açıklama..." rows="2" class="text-sm text-gray-600 w-full mt-1 bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none resize-none" data-item-id="${item.id}" onchange="window.handleItemDescriptionUpdate(this)">${item.description ? window.escapeHTML(item.description) : ''}</textarea>
+                    <input type="text" value="${item.image_url || ''}" placeholder="Görsel URL'i" class="text-xs text-gray-500 w-full mt-1 bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none" data-item-id="${item.id}" onchange="window.handleItemImageUrlUpdate(this)">
                 </div>
-                <button class="text-red-500 hover:text-red-700 ml-auto" title="Ürünü Sil" onclick="window.handleItemDelete(${item.id}, '${window.escapeJS(item.name)}', ${item.image_url ? `'${window.escapeJS(item.image_url)}'` : 'null'})">
+                <button class="text-red-500 hover:text-red-700 ml-auto flex-shrink-0" title="Ürünü Sil" onclick="window.handleItemDelete(${item.id}, '${window.escapeJS(item.name)}', ${item.image_url ? `'${window.escapeJS(item.image_url)}'` : 'null'})">
                     <i class="fas fa-trash-alt fa-sm"></i>
                 </button>
             </div>
@@ -454,7 +369,7 @@ const AdminPanel: React.FC = () => {
         event.preventDefault();
         const form = event.target as HTMLFormElement;
         const itemName = (form.elements.namedItem('itemName') as HTMLInputElement).value.trim();
-        const itemImageFile = (form.elements.namedItem('itemImage') as HTMLInputElement).files?.[0];
+        const imageUrl = (form.elements.namedItem('itemImageUrl') as HTMLInputElement).value.trim() || null;
         if (!itemName) return;
 
         const submitButton = form.querySelector('button[type="submit"]') as HTMLButtonElement;
@@ -462,30 +377,31 @@ const AdminPanel: React.FC = () => {
         submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
         try {
-            let imageUrl = null;
-            if (itemImageFile) {
-                imageUrl = await handleFileUpload(itemImageFile);
-                if (!imageUrl) throw new Error('Resim yüklenemedi, ürün eklenmedi.');
-            }
-
             const { data: maxPosData } = await supabaseClient
                 .from('menu_items').select('position').eq('category_id', categoryId).order('position', { ascending: false }).limit(1).single();
             const newPosition = (maxPosData ? maxPosData.position : 0) + 1;
 
             const { data: newItem, error } = await supabaseClient
-                .from('menu_items').insert({ category_id: categoryId, name: itemName, image_url: imageUrl, price: null, position: newPosition }).select().single();
+                .from('menu_items').insert({ 
+                    category_id: categoryId, 
+                    name: itemName, 
+                    image_url: imageUrl, 
+                    price: null, 
+                    position: newPosition,
+                    description: null 
+                }).select().single();
             if (error) throw error;
 
             const itemListEl = document.getElementById(`item-list-${categoryId}`);
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = renderItem(newItem);
-            const newItemEl = tempDiv.firstChild as HTMLElement;
+            const newItemEl = tempDiv.firstElementChild; // FIX: Use firstElementChild to skip leading text/whitespace nodes
             
-            // Re-attach event listeners for dynamically created element
-            newItemEl.querySelector('input[type="text"]')?.addEventListener('change', (e) => window.handleItemNameUpdate(e.target as HTMLInputElement));
-            newItemEl.querySelector('input[type="number"]')?.addEventListener('change', (e) => window.handleItemPriceUpdate(e.target as HTMLInputElement));
-            newItemEl.querySelector('button')?.addEventListener('click', () => window.handleItemDelete(newItem.id, newItem.name, newItem.image_url));
-            itemListEl?.appendChild(newItemEl);
+            if (newItemEl) {
+                // The `renderItem` function already includes inline `onchange` and `onclick` handlers.
+                // Manually adding them again with `addEventListener` is redundant and has been removed.
+                itemListEl?.appendChild(newItemEl);
+            }
             
             form.reset();
             showToast('Ürün eklendi.', 'success');
@@ -503,7 +419,7 @@ const AdminPanel: React.FC = () => {
         try {
             const { error } = await supabaseClient.from('menu_items').delete().eq('id', itemId);
             if (error) throw error;
-            if (imageUrl) await deleteStorageFile(imageUrl);
+            // No longer deleting from storage
             document.querySelector(`div[data-item-id="${itemId}"]`)?.remove();
             showToast('Ürün silindi.', 'success');
         } catch (error: any) {
@@ -537,6 +453,42 @@ const AdminPanel: React.FC = () => {
             console.error(error);
         }
     };
+    
+    window.handleItemDescriptionUpdate = async (textareaEl: HTMLTextAreaElement) => {
+        const itemId = textareaEl.dataset.itemId;
+        const newDescription = textareaEl.value.trim() || null;
+        try {
+            const { error } = await supabaseClient.from('menu_items').update({ description: newDescription }).eq('id', itemId);
+            if (error) throw error;
+            showToast('Ürün açıklaması güncellendi.', 'success');
+        } catch (error: any) {
+            showToast('Ürün açıklaması güncellenemedi!', 'error');
+            console.error(error);
+        }
+    };
+
+    window.handleItemImageUrlUpdate = async (inputEl: HTMLInputElement) => {
+        const itemId = inputEl.dataset.itemId;
+        const newImageUrl = inputEl.value.trim() || null;
+        try {
+            const { error } = await supabaseClient.from('menu_items').update({ image_url: newImageUrl }).eq('id', itemId);
+            if (error) throw error;
+
+            // Update the preview image in the same card
+            const itemCard = inputEl.closest('.item-card');
+            if (itemCard) {
+                const imgEl = itemCard.querySelector('img');
+                if (imgEl) {
+                    imgEl.src = newImageUrl || 'https://placehold.co/100x100/eee/ccc?text=Görsel';
+                }
+            }
+            showToast('Ürün görseli güncellendi.', 'success');
+        } catch (error: any) {
+            showToast('Ürün görseli güncellenemedi!', 'error');
+            console.error(error);
+        }
+    };
+
 
     // ===== SÜRÜKLE-BIRAK (SortableJS) İŞLEMLERİ =====
     function initCategorySortable() {
@@ -612,7 +564,6 @@ const AdminPanel: React.FC = () => {
     };
 
     // ===== BAŞLANGIÇ =====
-    setupImageUploadListeners();
     checkUserSession();
 
     // --- End of original script ---
@@ -694,11 +645,9 @@ const AdminPanel: React.FC = () => {
                           </div>
                       </div>
                       <div>
-                          <label htmlFor="hero_image_url" className="block text-sm font-medium text-gray-700">Ana Görsel (URL veya Yükle)</label>
+                          <label htmlFor="hero_image_url" className="block text-sm font-medium text-gray-700">Ana Görsel URL'i</label>
                           <div className="flex items-center space-x-2 mt-1">
                               <input type="text" id="hero_image_url" className="w-full p-2 border rounded-lg" placeholder="https://..." />
-                              <input type="file" id="hero_image_file" className="hidden" accept="image/*" />
-                              <button type="button" className="bg-blue-500 text-white px-3 py-2 rounded-lg text-sm" onClick={() => document.getElementById('hero_image_file')?.click()}><i className="fas fa-upload"></i></button>
                           </div>
                           <img id="hero_image_preview" src="" className="mt-2 h-32 rounded-lg shadow-sm object-cover" alt="Ana Görsel Önizleme" />
                       </div>
@@ -743,11 +692,9 @@ const AdminPanel: React.FC = () => {
                               <input type="text" id="event_card1_title" className="mt-1 w-full p-2 border rounded-lg" />
                               <label htmlFor="event_card1_body" className="block text-sm font-medium text-gray-700 mt-2">Açıklama</label>
                               <textarea id="event_card1_body" rows={3} className="mt-1 w-full p-2 border rounded-lg"></textarea>
-                              <label htmlFor="event_card1_image_url" className="block text-sm font-medium text-gray-700 mt-2">Görsel (URL veya Yükle)</label>
+                              <label htmlFor="event_card1_image_url" className="block text-sm font-medium text-gray-700 mt-2">Görsel URL'i</label>
                               <div className="flex items-center space-x-2 mt-1">
                                   <input type="text" id="event_card1_image_url" className="w-full p-2 border rounded-lg" placeholder="https://..." />
-                                  <input type="file" id="event_card1_file" className="hidden" accept="image/*" />
-                                  <button type="button" className="bg-blue-500 text-white px-3 py-2 rounded-lg text-sm" onClick={() => document.getElementById('event_card1_file')?.click()}><i className="fas fa-upload"></i></button>
                               </div>
                               <img id="event_card1_preview" src="" className="mt-2 h-24 rounded-lg shadow-sm object-cover" alt="Kart 1 Önizleme" />
                           </div>
@@ -757,11 +704,9 @@ const AdminPanel: React.FC = () => {
                               <input type="text" id="event_card2_title" className="mt-1 w-full p-2 border rounded-lg" />
                               <label htmlFor="event_card2_body" className="block text-sm font-medium text-gray-700 mt-2">Açıklama</label>
                               <textarea id="event_card2_body" rows={3} className="mt-1 w-full p-2 border rounded-lg"></textarea>
-                              <label htmlFor="event_card2_image_url" className="block text-sm font-medium text-gray-700 mt-2">Görsel (URL veya Yükle)</label>
+                              <label htmlFor="event_card2_image_url" className="block text-sm font-medium text-gray-700 mt-2">Görsel URL'i</label>
                               <div className="flex items-center space-x-2 mt-1">
                                   <input type="text" id="event_card2_image_url" className="w-full p-2 border rounded-lg" placeholder="https://..." />
-                                  <input type="file" id="event_card2_file" className="hidden" accept="image/*" />
-                                  <button type="button" className="bg-blue-500 text-white px-3 py-2 rounded-lg text-sm" onClick={() => document.getElementById('event_card2_file')?.click()}><i className="fas fa-upload"></i></button>
                               </div>
                               <img id="event_card2_preview" src="" className="mt-2 h-24 rounded-lg shadow-sm object-cover" alt="Kart 2 Önizleme" />
                           </div>

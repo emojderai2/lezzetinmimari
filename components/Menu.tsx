@@ -9,17 +9,22 @@ interface MenuProps {
 const MenuItemCard: React.FC<{ item: MenuItem; imageHeightClass: string }> = ({ item, imageHeightClass }) => {
   return (
     <div 
-      className="bg-white/10 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg transition-all duration-300 hover:scale-105"
+      className="bg-white/10 backdrop-blur-md rounded-2xl overflow-hidden shadow-lg transition-all duration-300 hover:scale-105 flex flex-col h-full"
     >
       <img 
         src={item.image_url || 'https://placehold.co/300x300/eee/ccc?text=Görsel'} 
         alt={item.name} 
         className={`w-full ${imageHeightClass} object-cover bg-gray-700`} 
       />
-      <div className="p-3 md:p-4">
+      <div className="p-3 md:p-4 flex flex-col flex-grow">
         <h4 className="font-bold text-base md:text-lg text-white truncate">{item.name}</h4>
+        {item.description && (
+          <p className="text-xs text-gray-300 mt-1 flex-grow line-clamp-2">
+            {item.description}
+          </p>
+        )}
         {item.price != null && (
-          <p className="text-sm text-gray-300 font-medium">
+          <p className="text-sm text-gray-200 font-medium mt-auto pt-2">
             {parseFloat(String(item.price)).toFixed(2)} TL
           </p>
         )}
