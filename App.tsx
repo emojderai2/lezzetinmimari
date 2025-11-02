@@ -4,6 +4,7 @@ import type { SiteConfig, MenuCategoryWithItems } from './types';
 import { fetchSiteConfig, fetchMenuData } from './services/supabaseService';
 import Header from './components/Header';
 import Hero from './components/Hero';
+import Countdown from './components/Countdown';
 import BrandStory from './components/BrandStory';
 import Values from './components/Values';
 import EventContent from './components/EventContent';
@@ -137,6 +138,10 @@ const App: React.FC = () => {
       <Header />
       <main>
         <Hero config={siteConfig} onScroll={handleSmoothScroll} />
+        <Countdown 
+          enabled={siteConfig?.countdown_enabled ?? false} 
+          targetDate={siteConfig?.countdown_target ?? ''} 
+        />
         <BrandStory config={siteConfig} />
         <Values config={siteConfig} />
         <EventContent config={siteConfig} onScroll={handleSmoothScroll} />

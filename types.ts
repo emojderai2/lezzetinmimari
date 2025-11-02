@@ -18,6 +18,11 @@ export interface SiteConfig {
   event_card2_title: string;
   event_card2_body: string;
   event_card2_image_url: string;
+  event_card3_title: string;
+  event_card3_body: string;
+  event_card3_image_url: string;
+  countdown_enabled: boolean;
+  countdown_target: string;
 }
 
 export interface MenuCategory {

@@ -18,7 +18,7 @@ const EventContent: React.FC<EventContentProps> = ({ config, onScroll }) => {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
           {/* Kart 1: Lezzet */}
           <div className="bg-[#f8f6f2] rounded-2xl shadow-lg overflow-hidden" data-aos="fade-up" data-aos-delay="200">
             <img src={config?.event_card1_image_url || "https://placehold.co/600x400/78350f/ffffff?text=Yükleniyor..."} alt="Lezzet Şöleni" className="w-full h-64 object-cover" />
@@ -36,6 +36,14 @@ const EventContent: React.FC<EventContentProps> = ({ config, onScroll }) => {
             <div className="p-8">
               <h3 className="text-2xl font-bold text-[#1e202a] mb-3">{config?.event_card2_title || 'Yükleniyor...'}</h3>
               <p className="text-gray-700">{config?.event_card2_body || '...'}</p>
+            </div>
+          </div>
+          {/* Kart 3: VİP Aile Bölümleri */}
+          <div className="bg-[#f8f6f2] rounded-2xl shadow-lg overflow-hidden" data-aos="fade-up" data-aos-delay="400">
+            <img src={config?.event_card3_image_url || "https://placehold.co/600x400/0f766e/ffffff?text=Yükleniyor..."} alt="VİP Aile Alanı" className="w-full h-64 object-cover" />
+            <div className="p-8">
+              <h3 className="text-2xl font-bold text-[#1e202a] mb-3">{config?.event_card3_title || 'VİP Aile Bölümleri'}</h3>
+              <p className="text-gray-700">{config?.event_card3_body || 'Aileler için özel olarak tasarlanmış, konforlu ve huzurlu alanlarımızda etkinliğin tadını çıkarın.'}</p>
             </div>
           </div>
         </div>

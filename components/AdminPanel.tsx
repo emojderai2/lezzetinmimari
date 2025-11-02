@@ -56,6 +56,7 @@ const AdminPanel: React.FC = () => {
     // FINAL FIX: Check if `import.meta.env` exists before trying to access it.
     const supabaseUrl = (typeof import.meta.env !== 'undefined' && import.meta.env.VITE_SUPABASE_URL) || LOCAL_DEV_SUPABASE_URL;
     const supabaseKey = (typeof import.meta.env !== 'undefined' && import.meta.env.VITE_SUPABASE_ANON_KEY) || LOCAL_DEV_SUPABASE_ANON_KEY;
+    const STORAGE_BUCKET_NAME = 'site-assets';
 
     // Check if environment variables are set. If not, show an error and stop.
     if (!supabaseUrl || !supabaseKey || supabaseUrl.includes("BURAYA")) {
@@ -171,7 +172,9 @@ const AdminPanel: React.FC = () => {
         'brand_story_title', 'brand_story_body',
         'value1_title', 'value1_body', 'value2_title', 'value2_body', 'value3_title', 'value3_body',
         'event_card1_title', 'event_card1_body', 'event_card1_image_url',
-        'event_card2_title', 'event_card2_body', 'event_card2_image_url'
+        'event_card2_title', 'event_card2_body', 'event_card2_image_url',
+        'event_card3_title', 'event_card3_body', 'event_card3_image_url',
+        'countdown_enabled', 'countdown_target'
     ];
     
     async function loadSiteConfig() {
@@ -185,7 +188,26 @@ const AdminPanel: React.FC = () => {
             if (data) {
                 configFields.forEach(id => {
                     const el = document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement;
-                    if (el) el.value = data[id] || '';
+                    if (el) {
+                         if (el.type === 'checkbox') {
+                            (el as HTMLInputElement).checked = data[id];
+                        } else if (el.type === 'datetime-local') {
+                            if (data[id]) {
+                                // Supabase timestamp: 2024-11-26T11:00:00+00:00
+                                // datetime-local input needs: 2024-11-26T11:00
+                                const date = new Date(data[id]);
+                                // Adjust for local timezone to display correctly in the input
+                                const timezoneOffset = date.getTimezoneOffset() * 60000;
+                                const localISOTime = new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+                                el.value = localISOTime;
+                            } else {
+                                el.value = '';
+                            }
+                        } else {
+                            el.value = data[id] || '';
+                        }
+                    }
+
                     if (id.endsWith('_url')) {
                         const previewEl = document.getElementById(id.replace('_url', '_preview')) as HTMLImageElement;
                         if (previewEl) previewEl.src = data[id] || 'https://placehold.co/100x100/eee/ccc?text=Görsel';
@@ -202,7 +224,15 @@ const AdminPanel: React.FC = () => {
         e.preventDefault();
         const updates: { [key: string]: any } = {};
         configFields.forEach(id => {
-            updates[id] = (document.getElementById(id) as HTMLInputElement).value;
+            const el = document.getElementById(id) as HTMLInputElement;
+            if (!el) return;
+
+            if (el.type === 'checkbox') {
+                updates[id] = el.checked;
+            } else {
+                // For datetime-local and other text inputs, an empty value should be null in the DB
+                updates[id] = el.value === '' ? null : el.value;
+            }
         });
 
         try {
@@ -288,7 +318,7 @@ const AdminPanel: React.FC = () => {
             <div class="flex justify-between items-center mb-4">
                 <div class="flex items-center space-x-2">
                     <i class="fas fa-arrows-alt handle text-gray-400 cursor-move" title="Kategoriyi Sürükle"></i>
-                    <input type="text" value="${window.escapeHTML(category.name)}" class="text-xl font-bold text-brand-dark bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none" data-category-id="${category.id}">
+                    <input type="text" value="${window.escapeHTML(category.name)}" class="text-xl font-bold text-brand-dark bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none" data-category-id="${category.id}" style="color: initial;">
                 </div>
                 <button class="text-red-600 hover:text-red-800 js-category-delete" title="Kategoriyi Sil">
                     <i class="fas fa-trash-alt"></i>
@@ -308,10 +338,8 @@ const AdminPanel: React.FC = () => {
                 </div>
             </form>
         `;
-        // FIX: Property 'handle...' does not exist on type 'Window & typeof globalThis'.
-        // The `window.handle...` functions are now declared on the global interface.
+
         categoryEl.querySelector('input[type="text"]')?.addEventListener('change', (e) => window.handleCategoryNameUpdate(e.target as HTMLInputElement));
-        categoryEl.querySelector('.js-category-delete')?.addEventListener('click', () => window.handleCategoryDelete(category.id, category.name));
         categoryEl.querySelector('form')?.addEventListener('submit', (e) => window.handleItemAdd(e, category.id));
 
         categoriesContainer.appendChild(categoryEl);
@@ -353,12 +381,12 @@ const AdminPanel: React.FC = () => {
                 <i class="fas fa-arrows-alt handle text-gray-400 cursor-move pt-1" title="Ürünü Sürükle"></i>
                 <img src="${item.image_url || 'https://placehold.co/100x100/eee/ccc?text=Görsel'}" alt="${window.escapeHTML(item.name)}" class="w-16 h-16 object-cover rounded-md bg-gray-200 flex-shrink-0">
                 <div class="flex-grow">
-                    <input type="text" value="${window.escapeHTML(item.name)}" class="font-semibold w-full bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none" data-item-id="${item.id}" onchange="window.handleItemNameUpdate(this)">
-                    <input type="number" step="0.01" value="${item.price || ''}" placeholder="Fiyat (örn: 150.50)" class="text-sm text-gray-600 w-full mt-1 bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none" data-item-id="${item.id}" onchange="window.handleItemPriceUpdate(this)">
-                    <textarea placeholder="Açıklama..." rows="2" class="text-sm text-gray-600 w-full mt-1 bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none resize-none" data-item-id="${item.id}" onchange="window.handleItemDescriptionUpdate(this)">${item.description ? window.escapeHTML(item.description) : ''}</textarea>
-                    <input type="text" value="${item.image_url || ''}" placeholder="Görsel URL'i" class="text-xs text-gray-500 w-full mt-1 bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none" data-item-id="${item.id}" onchange="window.handleItemImageUrlUpdate(this)">
+                    <input type="text" value="${window.escapeHTML(item.name)}" class="font-semibold text-brand-dark w-full bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none" data-item-id="${item.id}" onchange="window.handleItemNameUpdate(this)" style="color: initial;">
+                    <input type="number" step="0.01" value="${item.price || ''}" placeholder="Fiyat (örn: 150.50)" class="text-sm text-gray-600 w-full mt-1 bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none" data-item-id="${item.id}" onchange="window.handleItemPriceUpdate(this)" style="color: initial;">
+                    <textarea placeholder="Açıklama..." rows="2" class="text-sm text-gray-600 w-full mt-1 bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none resize-none" data-item-id="${item.id}" onchange="window.handleItemDescriptionUpdate(this)" style="color: initial;">${item.description ? window.escapeHTML(item.description) : ''}</textarea>
+                    <input type="text" value="${item.image_url || ''}" placeholder="Görsel URL'i" class="text-xs text-gray-500 w-full mt-1 bg-transparent border-b-2 border-transparent focus:border-brand-gold focus:outline-none js-image-url-input" data-item-id="${item.id}" onchange="window.handleItemImageUrlUpdate(this)" style="color: initial;">
                 </div>
-                <button class="text-red-500 hover:text-red-700 ml-auto flex-shrink-0" title="Ürünü Sil" onclick="window.handleItemDelete(${item.id}, '${window.escapeJS(item.name)}', ${item.image_url ? `'${window.escapeJS(item.image_url)}'` : 'null'})">
+                <button class="js-item-delete text-red-500 hover:text-red-700 ml-auto flex-shrink-0" title="Ürünü Sil">
                     <i class="fas fa-trash-alt fa-sm"></i>
                 </button>
             </div>
@@ -417,9 +445,9 @@ const AdminPanel: React.FC = () => {
     window.handleItemDelete = async (itemId: number, itemName: string, imageUrl: string | null) => {
         if (!confirm(`'${itemName}' ürününü silmek istediğinizden emin misiniz?`)) return;
         try {
-            const { error } = await supabaseClient.from('menu_items').delete().eq('id', itemId);
-            if (error) throw error;
-            // No longer deleting from storage
+            const { error: deleteError } = await supabaseClient.from('menu_items').delete().eq('id', itemId);
+            if (deleteError) throw deleteError;
+            
             document.querySelector(`div[data-item-id="${itemId}"]`)?.remove();
             showToast('Ürün silindi.', 'success');
         } catch (error: any) {
@@ -500,14 +528,24 @@ const AdminPanel: React.FC = () => {
     }
 
     async function updateCategoryPositions() {
-        if(!categoriesContainer) return;
+        if (!categoriesContainer) return;
         const updates = Array.from(categoriesContainer.querySelectorAll('.category-card')).map((card, index) => ({
-            id: (card as HTMLElement).dataset.categoryId,
+            id: parseInt((card as HTMLElement).dataset.categoryId!, 10),
             position: index + 1
         }));
+
+        const promises = updates.map(update =>
+            supabaseClient
+                .from('menu_categories')
+                .update({ position: update.position })
+                .eq('id', update.id)
+        );
+
         try {
-            const { error } = await supabaseClient.from('menu_categories').upsert(updates);
-            if (error) throw error;
+            const results = await Promise.all(promises);
+            for (const result of results) {
+                if (result.error) throw result.error;
+            }
             showToast('Kategori sırası güncellendi.', 'success');
         } catch (error: any) {
             showToast('Kategori sırası güncellenemedi!', 'error');
@@ -526,27 +564,36 @@ const AdminPanel: React.FC = () => {
 
     async function updateItemPositions(event: any) {
         const newCategoryEl = event.to as HTMLElement;
-        const newCategoryId = newCategoryEl.dataset.categoryId;
-        const updates = Array.from(newCategoryEl.querySelectorAll('.item-card')).map((card, index) => ({
-            id: (card as HTMLElement).dataset.itemId,
+        const newCategoryId = parseInt(newCategoryEl.dataset.categoryId!, 10);
+        let updates = Array.from(newCategoryEl.querySelectorAll('.item-card')).map((card, index) => ({
+            id: parseInt((card as HTMLElement).dataset.itemId!, 10),
             position: index + 1,
             category_id: newCategoryId
         }));
 
         if (event.from !== newCategoryEl) {
             const oldCategoryEl = event.from as HTMLElement;
-            const oldCategoryId = oldCategoryEl.dataset.categoryId;
+            const oldCategoryId = parseInt(oldCategoryEl.dataset.categoryId!, 10);
             const oldItems = Array.from(oldCategoryEl.querySelectorAll('.item-card')).map((card, index) => ({
-                id: (card as HTMLElement).dataset.itemId,
+                id: parseInt((card as HTMLElement).dataset.itemId!, 10),
                 position: index + 1,
                 category_id: oldCategoryId
             }));
             updates.push(...oldItems);
         }
 
+        const promises = updates.map(update =>
+            supabaseClient
+                .from('menu_items')
+                .update({ position: update.position, category_id: update.category_id })
+                .eq('id', update.id)
+        );
+
         try {
-            const { error } = await supabaseClient.from('menu_items').upsert(updates);
-            if (error) throw error;
+            const results = await Promise.all(promises);
+            for (const result of results) {
+                if (result.error) throw result.error;
+            }
             showToast('Ürün sırası güncellendi.', 'success');
         } catch (error: any) {
             showToast('Ürün sırası güncellenemedi!', 'error');
@@ -562,6 +609,39 @@ const AdminPanel: React.FC = () => {
         if (str === null || str === undefined) return '';
         return str.toString().replace(/'/g, "\\'");
     };
+    
+    // ===== DELEGATED EVENT LISTENER FOR DYNAMIC CONTENT =====
+    categoriesContainer?.addEventListener('click', (event) => {
+        const target = event.target as HTMLElement;
+
+        // Handle Category Deletion
+        const categoryDeleteButton = target.closest('.js-category-delete');
+        if (categoryDeleteButton) {
+            event.preventDefault();
+            const categoryCard = categoryDeleteButton.closest('.category-card') as HTMLElement;
+            if (categoryCard?.dataset.categoryId) {
+                const categoryId = parseInt(categoryCard.dataset.categoryId, 10);
+                const categoryNameInput = categoryCard.querySelector('input[data-category-id]') as HTMLInputElement;
+                const categoryName = categoryNameInput ? categoryNameInput.value : '...';
+                window.handleCategoryDelete(categoryId, categoryName);
+            }
+        }
+
+        // Handle Item Deletion
+        const itemDeleteButton = target.closest('.js-item-delete');
+        if (itemDeleteButton) {
+            event.preventDefault();
+            const itemCard = itemDeleteButton.closest('.item-card') as HTMLElement;
+            if (itemCard?.dataset.itemId) {
+                const itemId = parseInt(itemCard.dataset.itemId, 10);
+                const itemNameInput = itemCard.querySelector('div.flex-grow > input[type="text"]') as HTMLInputElement;
+                const itemName = itemNameInput ? itemNameInput.value : '...';
+                const imageUrlInput = itemCard.querySelector('.js-image-url-input') as HTMLInputElement;
+                const imageUrl = imageUrlInput ? imageUrlInput.value : null;
+                window.handleItemDelete(itemId, itemName, imageUrl);
+            }
+        }
+    });
 
     // ===== BAŞLANGIÇ =====
     checkUserSession();
@@ -620,7 +700,7 @@ const AdminPanel: React.FC = () => {
           <header className="bg-brand-dark shadow-md sticky top-0 z-50">
               <div className="container mx-auto px-4 py-3 flex justify-between items-center">
                   <button onClick={handleGoHome} className="focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-brand-dark focus:ring-brand-gold rounded">
-                    <img src="https://i.imgur.com/xwoTCIK.jpeg" alt="Lezzetin Mimarı Logo" className="h-10" />
+                    <img src="https://i.imgur.com/xwoTCIK.jpeg" alt="Lezzetin Mimarı Logo" className="h-10 bg-white p-1 rounded" />
                   </button>
                   <button id="logout-button" className="text-sm bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition duration-300">
                       <i className="fas fa-sign-out-alt mr-1"></i> Çıkış Yap
@@ -685,7 +765,7 @@ const AdminPanel: React.FC = () => {
                       </div>
 
                       <h3 className="text-lg font-semibold text-gray-700 mt-4 border-t pt-4">Etkinlik İçeriği Kartları</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                           <div>
                               <h4 className="font-semibold text-gray-600 mb-2">Kart 1 (Lezzet)</h4>
                               <label htmlFor="event_card1_title" className="block text-sm font-medium text-gray-700">Başlık</label>
@@ -709,6 +789,47 @@ const AdminPanel: React.FC = () => {
                                   <input type="text" id="event_card2_image_url" className="w-full p-2 border rounded-lg" placeholder="https://..." />
                               </div>
                               <img id="event_card2_preview" src="" className="mt-2 h-24 rounded-lg shadow-sm object-cover" alt="Kart 2 Önizleme" />
+                          </div>
+                          <div>
+                              <h4 className="font-semibold text-gray-600 mb-2">Kart 3 (VİP Aile Bölümleri)</h4>
+                              <label htmlFor="event_card3_title" className="block text-sm font-medium text-gray-700">Başlık</label>
+                              <input type="text" id="event_card3_title" className="mt-1 w-full p-2 border rounded-lg" />
+                              <label htmlFor="event_card3_body" className="block text-sm font-medium text-gray-700 mt-2">Açıklama</label>
+                              <textarea id="event_card3_body" rows={3} className="mt-1 w-full p-2 border rounded-lg"></textarea>
+                              <label htmlFor="event_card3_image_url" className="block text-sm font-medium text-gray-700 mt-2">Görsel URL'i</label>
+                              <div className="flex items-center space-x-2 mt-1">
+                                  <input type="text" id="event_card3_image_url" className="w-full p-2 border rounded-lg" placeholder="https://..."/>
+                              </div>
+                              <img id="event_card3_preview" src="" className="mt-2 h-24 rounded-lg shadow-sm object-cover" alt="Kart 3 Önizleme" />
+                          </div>
+                      </div>
+
+                      <h3 className="text-lg font-semibold text-gray-700 mt-4 border-t pt-4">Geri Sayım Sayacı</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                          <div>
+                              <label htmlFor="countdown_target" className="block text-sm font-medium text-gray-700">Hedef Tarih ve Saat</label>
+                              <input type="datetime-local" id="countdown_target" className="mt-1 w-full p-2 border rounded-lg" defaultValue="2024-11-26T11:00" />
+                          </div>
+                          <div>
+                              <label htmlFor="countdown_enabled" className="flex items-center cursor-pointer">
+                                  <div className="relative">
+                                      <input type="checkbox" id="countdown_enabled" className="sr-only" />
+                                      <div className="block bg-gray-600 w-14 h-8 rounded-full"></div>
+                                      <div className="dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition"></div>
+                                  </div>
+                                  <div className="ml-3 text-gray-700 font-medium">
+                                      Sayacı Ana Sayfada Göster
+                                  </div>
+                              </label>
+                              <style>{`
+                                  #countdown_enabled:checked ~ .dot {
+                                      transform: translateX(100%);
+                                      background-color: #b98d4a;
+                                  }
+                                  #countdown_enabled:checked ~ .block {
+                                      background-color: #1e202a;
+                                  }
+                              `}</style>
                           </div>
                       </div>
                       
