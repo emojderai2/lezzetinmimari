@@ -6,6 +6,15 @@ interface MenuProps {
   isLoading: boolean;
 }
 
+const formatCurrency = (price: number | null | undefined) => {
+  if (price === null || price === undefined) return '';
+  // toFixed(2) to handle floating point issues and round correctly
+  // Number() to drop trailing zeros, e.g., 150.00 -> 150, 150.50 -> 150.5
+  const formattedPrice = Number(price.toFixed(2));
+  return `${formattedPrice} ₺`;
+};
+
+
 const MenuItemCard: React.FC<{ item: MenuItem; imageHeightClass: string }> = ({ item, imageHeightClass }) => {
   return (
     <div 
@@ -25,7 +34,7 @@ const MenuItemCard: React.FC<{ item: MenuItem; imageHeightClass: string }> = ({ 
         )}
         {item.price != null && (
           <p className="text-sm text-gray-200 font-medium mt-auto pt-2">
-            {parseFloat(String(item.price)).toFixed(2)} TL
+            {formatCurrency(item.price)}
           </p>
         )}
       </div>

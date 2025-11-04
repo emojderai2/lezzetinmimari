@@ -10,6 +10,13 @@ import {
   fetchRolePins,
 } from '../services/supabaseService';
 
+const formatCurrency = (price: number | null | undefined) => {
+  if (price === null || price === undefined) return '';
+  const formattedPrice = Number(price.toFixed(2));
+  return `${formattedPrice} ₺`;
+};
+
+
 const OrderConfirmationModal: React.FC<{
     cart: CartItem[];
     notes: string;
@@ -30,13 +37,13 @@ const OrderConfirmationModal: React.FC<{
                 {cart.map(item => (
                     <div key={item.id} className="flex justify-between items-center text-gray-700">
                         <span>{item.quantity}x {item.name}</span>
-                        <span className="font-medium">{(item.price! * item.quantity).toFixed(2)} TL</span>
+                        <span className="font-medium">{formatCurrency(item.price! * item.quantity)}</span>
                     </div>
                 ))}
             </div>
             <div className="mt-4 pt-4 border-t flex justify-between items-center">
                 <span className="text-xl font-bold text-brand-dark">Toplam:</span>
-                <span className="text-xl font-bold text-brand-dark">{total.toFixed(2)} TL</span>
+                <span className="text-xl font-bold text-brand-dark">{formatCurrency(total)}</span>
             </div>
             <div className="mt-6 flex justify-end space-x-3">
                 <button onClick={onClose} className="bg-gray-200 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300">Geri Dön</button>
@@ -146,7 +153,7 @@ const OrderTakingMenu: React.FC<{ tableNumber: number; onOrderPlaced: () => void
                                             <div key={item.id} className={`border rounded-lg p-4 flex justify-between items-center transition-colors ${quantityInCart > 0 ? 'bg-amber-100 border-amber-300' : 'bg-white'}`}>
                                                 <div>
                                                     <h4 className="font-bold text-lg text-gray-800">{item.name}</h4>
-                                                    <span className="text-base text-gray-600">{item.price?.toFixed(2)} TL</span>
+                                                    <span className="text-base text-gray-600">{formatCurrency(item.price)}</span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <button onClick={() => handleUpdateQuantity(item, quantityInCart - 1)} className="bg-gray-200 text-brand-dark rounded-full w-10 h-10 text-xl font-bold hover:bg-gray-300 transition-colors disabled:opacity-50" disabled={quantityInCart === 0}>-</button>
@@ -178,7 +185,7 @@ const OrderTakingMenu: React.FC<{ tableNumber: number; onOrderPlaced: () => void
                         <div>
                             <span className="text-md md:text-lg font-semibold">{totalItems} ürün</span>
                             <span className="mx-2">|</span>
-                            <span className="text-lg md:text-xl font-bold">{total.toFixed(2)} TL</span>
+                            <span className="text-lg md:text-xl font-bold">{formatCurrency(total)}</span>
                         </div>
                         <button onClick={() => setIsConfirming(true)} className="bg-brand-gold text-white font-bold py-2 px-4 md:py-3 md:px-6 rounded-lg text-md md:text-lg hover:bg-opacity-90">
                            <i className="fas fa-arrow-right mr-2"></i> Siparişi Onayla
@@ -226,7 +233,7 @@ const ManageTableModal: React.FC<{ table: TableWithStatus, onOpenOrderMenu: () =
             <header className="bg-brand-dark text-white p-4 flex justify-between items-center sticky top-0 z-10">
                 <div>
                    <h2 className="text-xl md:text-2xl font-bold">Masa {table.table_number}</h2>
-                   <span className="text-xs md:text-sm">Toplam: {total.toFixed(2)} TL</span>
+                   <span className="text-xs md:text-sm">Toplam: {formatCurrency(total)}</span>
                 </div>
                 <button onClick={onClose} className="text-3xl font-bold">&times;</button>
             </header>

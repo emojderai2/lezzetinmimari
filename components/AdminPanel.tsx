@@ -24,6 +24,13 @@ import {
 // Declare type for CDN-loaded SortableJS library
 declare const Sortable: any;
 
+const formatCurrency = (price: number | null | undefined) => {
+  if (price === null || price === undefined) return '';
+  const formattedPrice = Number(price.toFixed(2));
+  return `${formattedPrice} ₺`;
+};
+
+
 // Helper function for Toast notifications
 const showToast = (message: string, type = 'success') => {
     const toast = document.getElementById('toast');
@@ -74,7 +81,7 @@ const Dashboard: React.FC = () => {
                         </div>
                         <div className="ml-4">
                             <p className="text-sm text-gray-600 font-medium">Bugünkü Toplam Ciro</p>
-                            <p className="text-3xl font-bold text-brand-dark">{stats.total_revenue.toFixed(2)} TL</p>
+                            <p className="text-3xl font-bold text-brand-dark">{formatCurrency(stats.total_revenue)}</p>
                         </div>
                     </div>
                 </div>
@@ -551,7 +558,7 @@ const MenuManagement: React.FC = () => {
                                         </div>
                                     </div>
                                     <div className="flex items-center space-x-3 ml-2">
-                                        <span className="font-bold text-brand-dark w-20 text-right text-sm">{item.price ? `${item.price.toFixed(2)} TL` : 'Fiyatsız'}</span>
+                                        <span className="font-bold text-brand-dark w-20 text-right text-sm">{item.price ? formatCurrency(item.price) : 'Fiyatsız'}</span>
                                         <button onClick={() => openModalForEdit(item)} className="text-blue-500 hover:text-blue-700 p-1"><i className="fas fa-pen"></i></button>
                                         <button onClick={() => handleDeleteItem(item.id, item.name)} className="text-red-500 hover:text-red-700 p-1"><i className="fas fa-trash"></i></button>
                                     </div>
@@ -580,7 +587,7 @@ const MenuManagement: React.FC = () => {
                                 <textarea name="description" value={currentItem.description || ''} onChange={handleModalChange} className="w-full p-2 border rounded"/>
                             </div>
                             <div>
-                                <label className="block text-sm font-medium">Fiyat (TL)</label>
+                                <label className="block text-sm font-medium">Fiyat (₺)</label>
                                 <input name="price" type="number" step="0.01" value={currentItem.price || ''} onChange={handleModalChange} className="w-full p-2 border rounded"/>
                             </div>
                             <div>

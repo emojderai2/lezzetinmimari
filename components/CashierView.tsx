@@ -2,6 +2,13 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import type { VisitWithDetails, OrderItem, RolePins } from '../types';
 import { fetchActiveVisits, closeVisit, subscribeToCashierUpdates, fetchRolePins } from '../services/supabaseService';
 
+const formatCurrency = (price: number | null | undefined) => {
+  if (price === null || price === undefined) return '';
+  const formattedPrice = Number(price.toFixed(2));
+  return `${formattedPrice} ₺`;
+};
+
+
 const calculateTotal = (visit: VisitWithDetails | null): number => {
     if (!visit) return 0;
     return visit.orders.reduce((total, order) => {
@@ -19,6 +26,11 @@ const PrintableReceipt: React.FC<PrintableReceiptProps> = ({ visit, total }) => 
     if (!visit) return null;
 
     const allItems = visit.orders.flatMap(o => o.order_items);
+    
+    const formatCurrencyForReceipt = (price: number | null | undefined) => {
+        if (price === null || price === undefined) return '';
+        return Number(price.toFixed(2)).toString();
+    };
 
     return (
         <div id="printable-receipt" className="p-4 text-xs text-black bg-white">
@@ -45,14 +57,14 @@ const PrintableReceipt: React.FC<PrintableReceiptProps> = ({ visit, total }) => 
                         <tr key={index}>
                             <td>{item.menu_items?.name}</td>
                             <td className="text-center">{item.quantity}</td>
-                            <td className="text-right">{(item.price * item.quantity).toFixed(2)}</td>
+                            <td className="text-right">{formatCurrencyForReceipt(item.price * item.quantity)}</td>
                         </tr>
                     ))}
                 </tbody>
             </table>
             <hr className="my-2 border-black border-dashed" />
             <div className="text-right">
-                <p className="font-bold text-sm">TOPLAM: {total.toFixed(2)} TL</p>
+                <p className="font-bold text-sm">TOPLAM: {formatCurrency(total)}</p>
             </div>
             <div className="text-center mt-4">
                 <p>Afiyet olsun!</p>
@@ -243,7 +255,7 @@ const CashierView: React.FC = () => {
                     >
                         <div className="flex justify-between items-center">
                             <h3 className="text-lg md:text-xl font-bold text-brand-dark">Masa {visit.tables?.table_number}</h3>
-                            <span className="text-md md:text-lg font-semibold">{total.toFixed(2)} TL</span>
+                            <span className="text-md md:text-lg font-semibold">{formatCurrency(total)}</span>
                         </div>
                         <p className="text-xs md:text-sm text-gray-500">
                             Açılış: {new Date(visit.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
@@ -278,7 +290,7 @@ const CashierView: React.FC = () => {
                         </div>
                         <div className="text-left md:text-right w-full md:w-auto">
                             <p className="text-gray-600">Toplam Tutar</p>
-                            <p className="text-4xl lg:text-5xl font-bold text-brand-gold">{total.toFixed(2)} TL</p>
+                            <p className="text-4xl lg:text-5xl font-bold text-brand-gold">{formatCurrency(total)}</p>
                         </div>
                     </div>
 
@@ -295,7 +307,7 @@ const CashierView: React.FC = () => {
                                     {order.order_items.map(item => (
                                         <li key={item.id} className="flex justify-between items-center text-gray-800">
                                             <span>{item.quantity}x {item.menu_items?.name}</span>
-                                            <span className="font-medium">{(item.price * item.quantity).toFixed(2)} TL</span>
+                                            <span className="font-medium">{formatCurrency(item.price * item.quantity)}</span>
                                         </li>
                                     ))}
                                 </ul>
