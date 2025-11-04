@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import type { TableWithStatus, VisitWithDetails, MenuCategoryWithItems, MenuItem, CartItem } from '../types';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import type { TableWithStatus, VisitWithDetails, MenuCategoryWithItems, MenuItem, CartItem, RolePins } from '../types';
 import {
   fetchTableStatuses,
   fetchVisitDetailsForWaiter,
@@ -7,7 +7,47 @@ import {
   updateOrderStatus,
   createOrder,
   fetchVisibleMenuData,
+  fetchRolePins,
 } from '../services/supabaseService';
+
+const OrderConfirmationModal: React.FC<{
+    cart: CartItem[];
+    notes: string;
+    total: number;
+    onConfirm: () => void;
+    onClose: () => void;
+    isOrdering: boolean;
+}> = ({ cart, notes, total, onConfirm, onClose, isOrdering }) => (
+    <div className="modal-overlay">
+        <div className="modal-content">
+            <h2 className="text-2xl font-bold mb-4 text-brand-dark">Siparişi Onayla</h2>
+            {notes && (
+                 <div className="mb-4 p-2 bg-amber-100 text-amber-800 rounded-md text-sm">
+                    <strong>Not:</strong> {notes}
+                </div>
+            )}
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                {cart.map(item => (
+                    <div key={item.id} className="flex justify-between items-center text-gray-700">
+                        <span>{item.quantity}x {item.name}</span>
+                        <span className="font-medium">{(item.price! * item.quantity).toFixed(2)} TL</span>
+                    </div>
+                ))}
+            </div>
+            <div className="mt-4 pt-4 border-t flex justify-between items-center">
+                <span className="text-xl font-bold text-brand-dark">Toplam:</span>
+                <span className="text-xl font-bold text-brand-dark">{total.toFixed(2)} TL</span>
+            </div>
+            <div className="mt-6 flex justify-end space-x-3">
+                <button onClick={onClose} className="bg-gray-200 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300">Geri Dön</button>
+                <button onClick={onConfirm} disabled={isOrdering} className="bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400">
+                    {isOrdering ? <><i className="fas fa-spinner fa-spin mr-2"></i> Gönderiliyor...</> : 'Onayla ve Gönder'}
+                </button>
+            </div>
+        </div>
+    </div>
+);
+
 
 // Reusable OrderTaking component
 const OrderTakingMenu: React.FC<{ tableNumber: number; onOrderPlaced: () => void; onClose: () => void; }> = ({ tableNumber, onOrderPlaced, onClose }) => {
@@ -15,6 +55,8 @@ const OrderTakingMenu: React.FC<{ tableNumber: number; onOrderPlaced: () => void
     const [cart, setCart] = useState<CartItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [orderStatus, setOrderStatus] = useState<'idle' | 'ordering' | 'error'>('idle');
+    const [notes, setNotes] = useState('');
+    const [isConfirming, setIsConfirming] = useState(false);
 
     useEffect(() => {
         const loadMenu = async () => {
@@ -30,16 +72,32 @@ const OrderTakingMenu: React.FC<{ tableNumber: number; onOrderPlaced: () => void
         };
         loadMenu();
     }, []);
+    
+    useEffect(() => {
+        if (isConfirming) {
+            document.body.classList.add('modal-open');
+        } else {
+            document.body.classList.remove('modal-open');
+        }
+    }, [isConfirming]);
 
-    const handleAddToCart = (item: MenuItem) => {
-        setCart(prevCart => {
-            const existingItem = prevCart.find(cartItem => cartItem.id === item.id);
-            if (existingItem) {
-                return prevCart.map(cartItem => cartItem.id === item.id ? { ...cartItem, quantity: cartItem.quantity + 1 } : cartItem);
-            }
-            return [...prevCart, { ...item, quantity: 1 }];
-        });
+
+    const handleUpdateQuantity = (item: MenuItem, newQuantity: number) => {
+        if (newQuantity <= 0) {
+            setCart(prevCart => prevCart.filter(cartItem => cartItem.id !== item.id));
+        } else {
+            setCart(prevCart => {
+                const existingItem = prevCart.find(cartItem => cartItem.id === item.id);
+                if (existingItem) {
+                    return prevCart.map(cartItem =>
+                        cartItem.id === item.id ? { ...cartItem, quantity: newQuantity } : cartItem
+                    );
+                }
+                return [...prevCart, { ...item, quantity: newQuantity }];
+            });
+        }
     };
+
 
     const total = useMemo(() => cart.reduce((acc, item) => acc + (item.price || 0) * item.quantity, 0), [cart]);
     const totalItems = useMemo(() => cart.reduce((acc, item) => acc + item.quantity, 0), [cart]);
@@ -48,11 +106,13 @@ const OrderTakingMenu: React.FC<{ tableNumber: number; onOrderPlaced: () => void
         if (cart.length === 0) return;
         setOrderStatus('ordering');
         try {
-            await createOrder(tableNumber, cart);
+            await createOrder(tableNumber, cart, notes);
             onOrderPlaced(); // This will close the modal and refresh tables
         } catch (err) {
             setOrderStatus('error');
             console.error(err);
+        } finally {
+            setIsConfirming(false);
         }
     };
 
@@ -63,27 +123,55 @@ const OrderTakingMenu: React.FC<{ tableNumber: number; onOrderPlaced: () => void
                 <button onClick={onClose} className="text-3xl font-bold">&times;</button>
             </header>
             <main className="flex-grow overflow-y-auto p-2 md:p-4">
-                {isLoading ? <p>Menü yükleniyor...</p> : (
-                    menuCategories.map(category => (
-                        <section key={category.id} className="mb-8">
-                            <h3 className="text-xl md:text-2xl font-bold text-brand-dark mb-4">{category.name}</h3>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 md:gap-4">
-                                {category.menu_items.map(item => (
-                                     <div key={item.id} onClick={() => handleAddToCart(item)} className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col cursor-pointer hover:shadow-xl transition-shadow">
-                                        <img src={item.image_url || 'https://placehold.co/300x200/eee/ccc?text=Görsel'} alt={item.name} className="w-full h-20 md:h-24 object-cover"/>
-                                        <div className="p-2 md:p-3 flex flex-col flex-grow">
-                                            <h4 className="font-bold text-xs md:text-sm text-gray-800">{item.name}</h4>
-                                            <div className="flex justify-between items-center mt-2">
-                                                <span className="font-semibold text-brand-dark text-sm md:text-md">{item.price?.toFixed(2)} TL</span>
+                {isLoading ? <p className="text-center p-4">Menü yükleniyor...</p> : (
+                    <>
+                        <div className="mb-4">
+                            <label htmlFor="order-notes" className="block text-sm font-medium text-gray-700">Sipariş Notu (İsteğe Bağlı)</label>
+                            <textarea
+                                id="order-notes"
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                rows={2}
+                                placeholder="Örn: Az pişmiş, soğansız..."
+                                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand-gold focus:ring-brand-gold sm:text-sm"
+                            />
+                        </div>
+                        {menuCategories.map(category => (
+                            <section key={category.id} className="mb-6">
+                                <h3 className="text-xl md:text-2xl font-bold text-brand-dark mb-3">{category.name}</h3>
+                                <div className="space-y-2">
+                                    {category.menu_items.map(item => {
+                                        const quantityInCart = cart.find(ci => ci.id === item.id)?.quantity || 0;
+                                        return (
+                                            <div key={item.id} className={`border rounded-lg p-3 flex justify-between items-center transition-colors ${quantityInCart > 0 ? 'bg-amber-100 border-amber-300' : 'bg-white'}`}>
+                                                <div>
+                                                    <h4 className="font-semibold text-gray-800">{item.name}</h4>
+                                                    <span className="text-sm text-gray-600">{item.price?.toFixed(2)} TL</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <button onClick={() => handleUpdateQuantity(item, quantityInCart - 1)} className="bg-gray-200 text-brand-dark rounded-full w-8 h-8 text-lg font-bold hover:bg-gray-300 transition-colors disabled:opacity-50" disabled={quantityInCart === 0}>-</button>
+                                                    <span className="font-bold text-brand-dark text-lg w-5 text-center">{quantityInCart > 0 ? quantityInCart : ''}</span>
+                                                    <button onClick={() => handleUpdateQuantity(item, quantityInCart + 1)} className="bg-gray-200 text-brand-dark rounded-full w-8 h-8 text-lg font-bold hover:bg-gray-300 transition-colors">+</button>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </section>
-                    ))
+                                        )
+                                    })}
+                                </div>
+                            </section>
+                        ))}
+                    </>
                 )}
             </main>
+            {isConfirming && (
+                <OrderConfirmationModal 
+                    cart={cart}
+                    notes={notes}
+                    total={total}
+                    onConfirm={handlePlaceOrder}
+                    onClose={() => setIsConfirming(false)}
+                    isOrdering={orderStatus === 'ordering'}
+                />
+            )}
             {cart.length > 0 && (
                 <footer className="bg-brand-dark text-white p-3 md:p-4 shadow-inner">
                     <div className="flex justify-between items-center">
@@ -92,8 +180,8 @@ const OrderTakingMenu: React.FC<{ tableNumber: number; onOrderPlaced: () => void
                             <span className="mx-2">|</span>
                             <span className="text-lg md:text-xl font-bold">{total.toFixed(2)} TL</span>
                         </div>
-                        <button onClick={handlePlaceOrder} disabled={orderStatus === 'ordering'} className="bg-brand-gold text-white font-bold py-2 px-4 md:py-3 md:px-6 rounded-lg text-md md:text-lg hover:bg-opacity-90 disabled:bg-gray-500">
-                           {orderStatus === 'ordering' ? <i className="fas fa-spinner fa-spin"></i> : "Siparişi Gönder"}
+                        <button onClick={() => setIsConfirming(true)} className="bg-brand-gold text-white font-bold py-2 px-4 md:py-3 md:px-6 rounded-lg text-md md:text-lg hover:bg-opacity-90">
+                           <i className="fas fa-arrow-right mr-2"></i> Siparişi Onayla
                         </button>
                     </div>
                 </footer>
@@ -129,10 +217,7 @@ const ManageTableModal: React.FC<{ table: TableWithStatus, onOpenOrderMenu: () =
     const total = useMemo(() => {
         if (!visit) return 0;
         return visit.orders.reduce((acc, order) => {
-            if (order.status !== 'delivered') { // Kasiyer ekranı için hesap kapanana kadar tümü toplanmalı
-                 return acc + order.order_items.reduce((itemTotal, item) => itemTotal + (item.price * item.quantity), 0);
-            }
-            return acc;
+            return acc + order.order_items.reduce((itemTotal, item) => itemTotal + (item.price * item.quantity), 0);
         }, 0);
     }, [visit]);
 
@@ -157,6 +242,12 @@ const ManageTableModal: React.FC<{ table: TableWithStatus, onOpenOrderMenu: () =
                                     {'new': 'Mutfakta', 'preparing': 'Hazırlanıyor', 'ready': 'Servise Hazır', 'delivered': 'Servis Edildi'}[order.status]
                                 }</span>
                             </div>
+                            {order.notes && (
+                                <div className="text-sm italic text-amber-800 bg-amber-100 p-2 rounded-md my-2">
+                                    <i className="fas fa-sticky-note mr-2"></i>
+                                    <strong>Not:</strong> {order.notes}
+                                </div>
+                            )}
                             <ul className="pl-2 border-l-2 text-sm md:text-base">
                                 {order.order_items.map(item => <li key={item.id}>{item.quantity}x {item.menu_items?.name}</li>)}
                             </ul>
@@ -176,12 +267,106 @@ const ManageTableModal: React.FC<{ table: TableWithStatus, onOpenOrderMenu: () =
     )
 };
 
+const PinEntry: React.FC<{ onPinVerified: () => void; correctPin: string; roleName: string }> = ({ onPinVerified, correctPin, roleName }) => {
+    const [pin, setPin] = useState('');
+    const [error, setError] = useState('');
+    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+    const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+        const { value } = e.target;
+        if (/^\d*$/.test(value) && value.length <= 1) {
+            const newPin = pin.split('');
+            newPin[index] = value;
+            setPin(newPin.join(''));
+
+            if (value && index < 3) {
+                inputRefs.current[index + 1]?.focus();
+            }
+        }
+    };
+    
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+        if (e.key === 'Backspace' && !pin[index] && index > 0) {
+            inputRefs.current[index - 1]?.focus();
+        }
+    };
+    
+    useEffect(() => {
+        if(pin.length === 4) {
+            if (pin === correctPin) {
+                onPinVerified();
+            } else {
+                setError('Hatalı PIN. Lütfen tekrar deneyin.');
+                setPin('');
+                inputRefs.current[0]?.focus();
+            }
+        } else {
+            setError('');
+        }
+    }, [pin, correctPin, onPinVerified]);
+
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-brand-dark p-4">
+            <div className="w-full max-w-sm bg-white p-8 rounded-2xl shadow-xl text-center">
+                 <h1 className="text-3xl font-bold text-brand-dark mb-2">{roleName} Girişi</h1>
+                 <p className="text-gray-600 mb-6">Lütfen devam etmek için 4 haneli PIN kodunuzu girin.</p>
+                 <div className="flex justify-center gap-3 mb-4">
+                    {[0, 1, 2, 3].map(i => (
+                        <input
+                            key={i}
+                            // FIX: Use a block body for the ref callback to prevent an implicit return value,
+                            // which was causing a TypeScript type error.
+                            ref={el => { inputRefs.current[i] = el; }}
+                            type="text"
+                            maxLength={1}
+                            value={pin[i] || ''}
+                            onChange={e => handlePinChange(e, i)}
+                            onKeyDown={e => handleKeyDown(e, i)}
+                            className="w-14 h-16 text-center text-3xl font-bold border-2 border-gray-300 rounded-lg focus:outline-none focus:border-brand-gold"
+                        />
+                    ))}
+                 </div>
+                 {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+                 <div className="mt-8">
+                    <a onClick={() => window.location.hash = 'employee'} className="text-sm text-gray-500 hover:text-brand-gold">
+                        <i className="fas fa-arrow-left mr-1"></i>
+                        Çalışan Arayüzüne Dön
+                    </a>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const WaiterView: React.FC = () => {
     const [tables, setTables] = useState<TableWithStatus[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeModal, setActiveModal] = useState<{ type: 'order' | 'manage'; table: TableWithStatus } | null>(null);
+    
+    const [isAuthenticated, setIsAuthenticated] = useState(sessionStorage.getItem('waiter_pin_verified') === 'true');
+    const [correctPin, setCorrectPin] = useState<string | null>(null);
+
+    useEffect(() => {
+        const getPins = async () => {
+            try {
+                const pins = await fetchRolePins();
+                const waiterPin = pins.find(p => p.role === 'waiter')?.pin;
+                if (!waiterPin) {
+                    setError('Garson PIN kodu ayarlanmamış. Lütfen yöneticiyle görüşün.');
+                } else {
+                    setCorrectPin(waiterPin);
+                }
+            } catch (err: any) {
+                setError(err.message);
+            }
+        };
+        if(!isAuthenticated) {
+            getPins();
+        }
+    }, [isAuthenticated]);
+
 
     const fetchAndSetTables = useCallback(async () => {
         try {
@@ -195,10 +380,29 @@ const WaiterView: React.FC = () => {
     }, []);
 
     useEffect(() => {
+        if (!isAuthenticated) return;
+        
         fetchAndSetTables();
+
         const channel = subscribeToWaiterUpdates(fetchAndSetTables);
-        return () => { channel.unsubscribe(); };
-    }, [fetchAndSetTables]);
+
+        // Setup polling as a fallback mechanism
+        const pollingId = setInterval(() => {
+            console.log('Polling waiter for updates...');
+            fetchAndSetTables();
+        }, 10000); // every 10 seconds
+
+        return () => {
+            console.log('WaiterView: Cleaning up subscription and polling.');
+            clearInterval(pollingId);
+            channel.unsubscribe(); 
+        };
+    }, [fetchAndSetTables, isAuthenticated]);
+
+    const handlePinVerified = () => {
+        sessionStorage.setItem('waiter_pin_verified', 'true');
+        setIsAuthenticated(true);
+    };
 
     const handleTableClick = (table: TableWithStatus) => {
         if (!table.visit_status) { // Boş masa
@@ -230,6 +434,12 @@ const WaiterView: React.FC = () => {
             </div>
         );
     };
+
+    if (!isAuthenticated) {
+        if (error) return <div className="flex items-center justify-center h-screen text-red-500 bg-gray-100 p-4">{error}</div>;
+        if (!correctPin) return <div className="flex items-center justify-center h-screen"><i className="fas fa-spinner fa-spin text-4xl text-brand-gold"></i></div>;
+        return <PinEntry onPinVerified={handlePinVerified} correctPin={correctPin} roleName="Garson" />;
+    }
 
     return (
         <div className="bg-gray-100 min-h-screen">

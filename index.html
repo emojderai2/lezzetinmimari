@@ -143,6 +143,14 @@
             transform: scale(1.2);
             accent-color: #b98d4a;
         }
+        .flash-notification {
+            animation: flash-bg 0.8s ease-in-out;
+        }
+        @keyframes flash-bg {
+            0%, 100% { background-color: #f8f6f2; }
+            50% { background-color: #fffbeb; } /* A light yellow flash */
+        }
+
 
         /* Cashier View Styles */
         .visit-card {

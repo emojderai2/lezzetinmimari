@@ -64,6 +64,7 @@ export interface Order {
   waiter_id?: string; // UUID
   status: 'new' | 'preparing' | 'ready' | 'delivered';
   created_at: string;
+  notes?: string | null;
 }
 
 export interface OrderItem {
@@ -117,4 +118,9 @@ export interface DashboardStats {
     name: string;
     total_quantity: number;
   }[];
+}
+
+export interface RolePins {
+    role: string;
+    pin: string;
 }

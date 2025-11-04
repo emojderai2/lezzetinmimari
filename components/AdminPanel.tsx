@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import type { SiteConfig, MenuCategoryWithItems, MenuItem, Table, DashboardStats } from '../types';
+import type { SiteConfig, MenuCategoryWithItems, MenuItem, Table, DashboardStats, RolePins } from '../types';
 import {
     getSupabaseClient,
     fetchSiteConfig,
@@ -16,7 +16,9 @@ import {
     fetchTables,
     addTable,
     deleteTable,
-    fetchDashboardStats
+    fetchDashboardStats,
+    fetchRolePins,
+    updateRolePins
 } from '../services/supabaseService';
 
 // Declare type for CDN-loaded SortableJS library
@@ -694,6 +696,91 @@ const TableManagement: React.FC = () => {
     );
 };
 
+// ===================================================================================
+// PIN Management Component
+// ===================================================================================
+const PinManagement: React.FC = () => {
+    const [pins, setPins] = useState<{ [key: string]: string }>({ waiter: '', kitchen: '', cashier: '' });
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+
+    const roles = [
+        { key: 'waiter', name: 'Garson' },
+        { key: 'kitchen', name: 'Mutfak' },
+        { key: 'cashier', name: 'Kasa' },
+    ];
+
+    useEffect(() => {
+        const loadPins = async () => {
+            setIsLoading(true);
+            try {
+                const data = await fetchRolePins();
+                const pinsMap = data.reduce((acc, item) => {
+                    acc[item.role] = item.pin;
+                    return acc;
+                }, {} as { [key: string]: string });
+                setPins(prev => ({ ...prev, ...pinsMap }));
+            } catch (error: any) {
+                showToast(error.message, 'error');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadPins();
+    }, []);
+
+    const handleChange = (role: string, value: string) => {
+        // Only allow 4 digits
+        if (/^\d{0,4}$/.test(value)) {
+            setPins(prev => ({ ...prev, [role]: value }));
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSaving(true);
+        try {
+            const pinPayload = Object.entries(pins).map(([role, pin]) => ({ role, pin: String(pin) }));
+            await updateRolePins(pinPayload);
+            showToast('PIN kodları başarıyla güncellendi.', 'success');
+        } catch (error: any) {
+            showToast(error.message, 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (isLoading) {
+        return <div className="text-center p-8"><i className="fas fa-spinner fa-spin text-4xl text-brand-gold"></i></div>;
+    }
+
+    return (
+        <div className="fade-in bg-white p-6 rounded-2xl shadow-lg">
+            <h2 className="text-2xl font-bold text-brand-dark mb-5 border-b pb-3 flex items-center"><i className="fas fa-key mr-3"></i>PIN Yönetimi</h2>
+            <form onSubmit={handleSubmit} className="space-y-6 max-w-lg mx-auto">
+                {roles.map(role => (
+                    <div key={role.key}>
+                        <label htmlFor={`${role.key}_pin`} className="block text-lg font-medium text-gray-700">{role.name} PIN</label>
+                        <input
+                            type="text"
+                            id={`${role.key}_pin`}
+                            value={pins[role.key] || ''}
+                            onChange={(e) => handleChange(role.key, e.target.value)}
+                            maxLength={4}
+                            placeholder="4 Haneli PIN"
+                            className="mt-1 w-full p-3 border rounded-lg text-center text-2xl tracking-[.5em]"
+                        />
+                    </div>
+                ))}
+
+                <button type="submit" disabled={isSaving} className="w-full bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 transition duration-300 disabled:bg-gray-400">
+                    <i className={`fas ${isSaving ? 'fa-spinner fa-spin' : 'fa-save'} mr-2`}></i> {isSaving ? 'Kaydediliyor...' : 'PIN Kodlarını Kaydet'}
+                </button>
+            </form>
+        </div>
+    );
+};
+
 
 // ===================================================================================
 // Main Admin Panel Component
@@ -784,6 +871,7 @@ const AdminPanel: React.FC = () => {
             case 'site': return <SiteSettings />;
             case 'menu': return <MenuManagement />;
             case 'tables': return <TableManagement />;
+            case 'pins': return <PinManagement />;
             default: return null;
         }
     };
@@ -849,17 +937,20 @@ const AdminPanel: React.FC = () => {
                 <main className="container mx-auto p-4 md:p-8">
                      <div className="bg-white p-6 rounded-2xl shadow-lg mb-8">
                         <nav className="border-b border-gray-200 mb-6">
-                            <div className="flex space-x-8">
-                                <button onClick={() => setActiveTab('dashboard')} className={`admin-tab py-4 px-1 border-b-4 ${activeTab === 'dashboard' ? 'active' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}>
+                            <div className="flex space-x-8 overflow-x-auto">
+                                <button onClick={() => setActiveTab('dashboard')} className={`admin-tab py-4 px-1 border-b-4 whitespace-nowrap ${activeTab === 'dashboard' ? 'active' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}>
                                     <i className="fas fa-chart-line mr-2"></i>Pano
                                 </button>
-                                <button onClick={() => setActiveTab('menu')} className={`admin-tab py-4 px-1 border-b-4 ${activeTab === 'menu' ? 'active' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}>
+                                <button onClick={() => setActiveTab('menu')} className={`admin-tab py-4 px-1 border-b-4 whitespace-nowrap ${activeTab === 'menu' ? 'active' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}>
                                     <i className="fas fa-utensils mr-2"></i>Menü Yönetimi
                                 </button>
-                                <button onClick={() => setActiveTab('tables')} className={`admin-tab py-4 px-1 border-b-4 ${activeTab === 'tables' ? 'active' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}>
+                                <button onClick={() => setActiveTab('tables')} className={`admin-tab py-4 px-1 border-b-4 whitespace-nowrap ${activeTab === 'tables' ? 'active' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}>
                                     <i className="fas fa-chair mr-2"></i>Masa Yönetimi
                                 </button>
-                                <button onClick={() => setActiveTab('site')} className={`admin-tab py-4 px-1 border-b-4 ${activeTab === 'site' ? 'active' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}>
+                                <button onClick={() => setActiveTab('pins')} className={`admin-tab py-4 px-1 border-b-4 whitespace-nowrap ${activeTab === 'pins' ? 'active' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}>
+                                    <i className="fas fa-key mr-2"></i>PIN Yönetimi
+                                </button>
+                                <button onClick={() => setActiveTab('site')} className={`admin-tab py-4 px-1 border-b-4 whitespace-nowrap ${activeTab === 'site' ? 'active' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'}`}>
                                     <i className="fas fa-cog mr-2"></i>Site Ayarları
                                 </button>
                             </div>

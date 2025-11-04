@@ -11,7 +11,7 @@ declare global {
 }
 
 import { createClient, RealtimeChannel } from '@supabase/supabase-js';
-import type { SiteConfig, MenuCategoryWithItems, CartItem, OrderWithDetails, VisitWithDetails, TableWithStatus, Table, DashboardStats, MenuItem, MenuCategory } from '../types';
+import type { SiteConfig, MenuCategoryWithItems, CartItem, OrderWithDetails, VisitWithDetails, TableWithStatus, Table, DashboardStats, MenuItem, MenuCategory, RolePins } from '../types';
 
 // ===================================================================================
 // YAYINLAMA İÇİN GÜVENLİ ANAHTAR YÖNETİMİ
@@ -95,7 +95,7 @@ export const fetchVisibleMenuData = async (): Promise<MenuCategoryWithItems[]> =
   return fetchMenuData();
 };
 
-export const createOrder = async (tableId: string | number, cart: CartItem[]): Promise<string> => {
+export const createOrder = async (tableId: string | number, cart: CartItem[], notes?: string | null): Promise<string> => {
   // tableId'nin sayıya çevrilebilir olduğundan emin olalım
   const tableNumber = parseInt(String(tableId), 10);
   if (isNaN(tableNumber)) {
@@ -111,6 +111,7 @@ export const createOrder = async (tableId: string | number, cart: CartItem[]): P
   const { data, error } = await supabase.rpc('create_order', {
     table_number_param: tableNumber,
     order_items_param: orderItemsPayload,
+    notes_param: notes || null,
   });
 
   if (error) {
@@ -121,12 +122,53 @@ export const createOrder = async (tableId: string | number, cart: CartItem[]): P
   return data as string; // Returns the new order_id (UUID)
 };
 
+
+// Customer View Function
+export const fetchActiveVisitForTable = async (tableNumber: string): Promise<VisitWithDetails | null> => {
+    const { data: tableData, error: tableError } = await supabase
+        .from('tables')
+        .select('id')
+        .eq('table_number', parseInt(tableNumber, 10))
+        .single();
+
+    if (tableError || !tableData) {
+        console.error('Error fetching table for customer view:', tableError?.message);
+        return null;
+    }
+
+    const { data, error } = await supabase
+        .from('visits')
+        .select(`
+            *,
+            tables ( table_number ),
+            orders (
+                *,
+                order_items (
+                    *,
+                    menu_items ( name )
+                )
+            )
+        `)
+        .eq('table_id', tableData.id)
+        .eq('status', 'active')
+        .order('created_at', {foreignTable: 'orders', ascending: true})
+        .maybeSingle(); 
+
+    if (error) {
+        console.error('Error fetching active visit:', error.message);
+        return null; 
+    }
+    return data as VisitWithDetails | null;
+}
+
+
 // Kitchen View Functions
 export const fetchKitchenOrders = async (): Promise<OrderWithDetails[]> => {
     const { data, error } = await supabase
         .from('orders')
         .select(`
             *,
+            notes,
             visits (
                 tables (
                     table_number
@@ -173,13 +215,43 @@ export const updateOrderItemStatus = async (orderItemId: number, status: 'pendin
     }
 };
 
-export const subscribeToOrders = (callback: () => void): RealtimeChannel => {
-    const channel = supabase.channel('public:orders')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, payload => {
-            console.log('New order received!', payload);
+export const revertOrderItemsStatus = async (orderId: string) => {
+    const { error } = await supabase
+        .from('order_items')
+        .update({ status: 'pending' })
+        .eq('order_id', orderId);
+    
+    if (error) {
+        console.error(`Error reverting order items for order ${orderId}:`, error);
+        throw new Error('Sipariş kalemleri sıfırlanamadı.');
+    }
+};
+
+
+export const subscribeToKitchenUpdates = (callback: () => void): RealtimeChannel => {
+    const channel = supabase.channel('public-kitchen-updates')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
+            console.log('Change detected in orders table. Payload:', payload);
             callback();
         })
-        .subscribe();
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, (payload) => {
+             console.log('Change detected in order_items table. Payload:', payload);
+             callback();
+        })
+        .subscribe((status, err) => {
+            if (status === 'SUBSCRIBED') {
+                console.log('Successfully subscribed to kitchen updates!');
+            }
+            if (status === 'CHANNEL_ERROR' || err) {
+                console.error('Subscription error:', status, err);
+            }
+            if (status === 'TIMED_OUT') {
+                console.warn('Subscription timed out.');
+            }
+            if (status === 'CLOSED') {
+                console.log('Subscription closed.');
+            }
+        });
 
     return channel;
 };
@@ -193,6 +265,7 @@ export const fetchActiveVisits = async (): Promise<VisitWithDetails[]> => {
             tables ( table_number ),
             orders (
                 *,
+                notes,
                 order_items (
                     *,
                     menu_items ( name )
@@ -263,6 +336,7 @@ export const fetchVisitDetailsForWaiter = async (visitId: string): Promise<Visit
             tables ( table_number ),
             orders (
                 *,
+                notes,
                 order_items (
                     *,
                     menu_items ( name )
@@ -433,5 +507,46 @@ export const batchUpdateItemPositions = async (updates: { id: number; position: 
             // Throw an error on the first failure.
             throw new Error('Ürün sıralaması güncellenemedi. Lütfen tekrar deneyin.');
         }
+    }
+};
+
+// Admin - PIN Management Functions
+export const fetchRolePins = async (): Promise<RolePins[]> => {
+    const { data, error } = await supabase
+        .from('role_pins')
+        .select('role, pin');
+    
+    if (error && error.code === 'PGRST205') { // "Could not find the table 'public.role_pins'..."
+        console.warn(
+            'UYARI: "role_pins" tablosu veritabanında bulunamadı. ' +
+            'PIN doğrulama sistemi varsayılan PIN\'ler ile çalışacak. ' +
+            'Lütfen Supabase projenizde tabloyu oluşturun. Varsayılanlar: Garson: 1111, Mutfak: 2222, Kasa: 3333'
+        );
+        // Return default PINs to allow the app to function
+        return [
+            { role: 'waiter', pin: '1111' },
+            { role: 'kitchen', pin: '2222' },
+            { role: 'cashier', pin: '3333' },
+        ];
+    }
+    
+    if (error) {
+        console.error('Error fetching role pins:', error);
+        throw new Error('PIN bilgileri alınamadı.');
+    }
+    return data as RolePins[];
+};
+
+export const updateRolePins = async (pins: { role: string; pin: string }[]): Promise<void> => {
+    const { error } = await supabase
+        .from('role_pins')
+        .upsert(pins, { onConflict: 'role' });
+    
+    if (error) {
+        console.error('Error updating role pins:', error);
+        if (error.message.includes('relation "public.role_pins" does not exist')) {
+             throw new Error('PIN yönetimi tablosu bulunamadı. Lütfen veritabanında "role_pins" tablosunu oluşturun.');
+        }
+        throw new Error('PIN bilgileri güncellenemedi.');
     }
 };
