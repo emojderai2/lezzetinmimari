@@ -221,7 +221,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
                                 return (
                                     <div key={item.id} className="bg-white rounded-lg shadow-md flex flex-col relative">
                                         {quantityInCart > 0 && (
-                                            <div key={`${item.id}-${quantityInCart}`} className="absolute top-0 right-0 -mt-2 -mr-2 bg-red-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center border-2 border-white notification-pop z-10">
+                                            <div key={`${item.id}-${quantityInCart}`} className="absolute top-1 right-1 bg-red-600 text-white text-sm font-bold rounded-full w-7 h-7 flex items-center justify-center border-2 border-white notification-pop z-10">
                                                 {quantityInCart}
                                             </div>
                                         )}
