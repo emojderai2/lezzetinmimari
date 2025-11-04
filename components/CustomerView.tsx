@@ -219,13 +219,13 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
                             {category.menu_items.map(item => {
                                 const quantityInCart = cart.find(ci => ci.id === item.id)?.quantity || 0;
                                 return (
-                                    <div key={item.id} className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col relative">
+                                    <div key={item.id} className="bg-white rounded-lg shadow-md flex flex-col relative">
                                         {quantityInCart > 0 && (
                                             <div key={`${item.id}-${quantityInCart}`} className="absolute top-0 right-0 -mt-2 -mr-2 bg-red-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center border-2 border-white notification-pop z-10">
                                                 {quantityInCart}
                                             </div>
                                         )}
-                                        <img src={item.image_url || 'https://placehold.co/300x200/eee/ccc?text=Görsel'} alt={item.name} className="w-full h-32 object-cover"/>
+                                        <img src={item.image_url || 'https://placehold.co/300x200/eee/ccc?text=Görsel'} alt={item.name} className="w-full h-32 object-cover rounded-t-lg"/>
                                         <div className="p-3 flex flex-col flex-grow">
                                             <h3 className="font-bold text-md text-gray-800">{item.name}</h3>
                                             <p className="text-xs text-gray-600 flex-grow mt-1">{item.description}</p>
