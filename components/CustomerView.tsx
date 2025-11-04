@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { MenuCategoryWithItems, MenuItem, CartItem, VisitWithDetails } from '../types';
 import { fetchVisibleMenuData, createOrder, fetchActiveVisitForTable } from '../services/supabaseService';
 
@@ -55,7 +55,10 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [currentVisit, setCurrentVisit] = useState<VisitWithDetails | null>(null);
   const [activeTab, setActiveTab] = useState<'order' | 'status'>('order');
+  const [activeCategory, setActiveCategory] = useState<number | null>(null);
 
+  const categoryRefs = useRef<Record<number, HTMLElement | null>>({});
+  const categoryNavRef = useRef<HTMLDivElement>(null);
 
   const loadVisitData = useCallback(async () => {
     const visitData = await fetchActiveVisitForTable(tableId);
@@ -67,7 +70,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
       try {
         setIsLoading(true);
         const categories = await fetchVisibleMenuData();
-        setMenuCategories(categories);
+        setMenuCategories(categories.filter(c => c.menu_items && c.menu_items.length > 0));
         await loadVisitData();
         setError(null);
       } catch (err: any) {
@@ -79,6 +82,52 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
     loadData();
   }, [tableId, loadVisitData]);
   
+  useEffect(() => {
+    const handleScroll = () => {
+      const topOffset = 130; // Height of sticky headers
+      let currentCategory: number | null = null;
+      
+      menuCategories.forEach(cat => {
+          const element = categoryRefs.current[cat.id];
+          if (element) {
+              const rect = element.getBoundingClientRect();
+              if (rect.top <= topOffset) {
+                  currentCategory = cat.id;
+              }
+          }
+      });
+
+      if (activeCategory !== currentCategory) {
+          setActiveCategory(currentCategory);
+          
+          // Scroll active nav item into view
+          const navButton = categoryNavRef.current?.querySelector(`[data-cat-id="${currentCategory}"]`);
+          navButton?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    };
+    
+    if (activeTab === 'order') {
+        window.addEventListener('scroll', handleScroll);
+    }
+
+    return () => {
+        window.removeEventListener('scroll', handleScroll);
+    };
+  }, [menuCategories, activeCategory, activeTab]);
+
+  const handleNavClick = (categoryId: number) => {
+      const element = categoryRefs.current[categoryId];
+      if (element) {
+          const topPos = element.getBoundingClientRect().top + window.pageYOffset;
+          const offset = 120;
+          window.scrollTo({
+              top: topPos - offset,
+              behavior: 'smooth'
+          });
+      }
+  };
+
+
   const handleUpdateQuantity = (item: MenuItem, newQuantity: number) => {
     if (newQuantity <= 0) {
         setCart(prevCart => prevCart.filter(cartItem => cartItem.id !== item.id));
@@ -180,40 +229,63 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
 
   return (
     <div className="bg-gray-100 min-h-screen pb-32">
-        <header className="bg-white shadow-md sticky top-0 z-40 h-[72px] flex items-center">
+        <header className="bg-white shadow-md sticky top-0 z-40 h-[60px] flex items-center">
             <div className="container mx-auto px-4 flex justify-between items-center">
-                <img src="https://i.imgur.com/xwoTCIK.jpeg" alt="Logo" className="h-12" />
+                <img src="https://i.imgur.com/xwoTCIK.jpeg" alt="Logo" className="h-10" />
                 <div className="text-right">
-                    <span className="text-sm text-gray-600">Masa Numaranız</span>
-                    <p className="font-bold text-2xl text-brand-gold">{tableId}</p>
+                    <span className="text-xs text-gray-600">Masa</span>
+                    <p className="font-bold text-xl text-brand-gold">{tableId}</p>
                 </div>
             </div>
         </header>
-
-        {/* --- Tab Switcher --- */}
-        <div className="sticky top-[72px] bg-gray-100 p-2 z-30 shadow-sm">
-            <div className="relative flex w-full max-w-sm mx-auto bg-gray-200 rounded-full p-1">
-                <span
-                    className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-full shadow-md transition-transform duration-300 ease-in-out"
-                    style={{ transform: activeTab === 'order' ? 'translateX(4px)' : 'translateX(calc(100% + 4px))' }}
-                />
-                <button 
-                    onClick={() => setActiveTab('order')} 
-                    className={`relative z-10 w-1/2 py-2 text-center font-semibold transition-colors duration-300 ${activeTab === 'order' ? 'text-brand-dark' : 'text-gray-600'}`}>
-                    Yeni Sipariş
-                </button>
-                <button 
-                    onClick={() => setActiveTab('status')} 
-                    className={`relative z-10 w-1/2 py-2 text-center font-semibold transition-colors duration-300 ${activeTab === 'status' ? 'text-brand-dark' : 'text-gray-600'}`}>
-                    Hesabım
-                </button>
+        
+        <div className="sticky top-[60px] bg-white z-30 shadow-sm">
+            {/* --- Tab Switcher --- */}
+            <div className="p-2 border-b">
+                <div className="relative flex w-full max-w-xs mx-auto bg-gray-200 rounded-full p-0.5">
+                    <span
+                        className="absolute top-0.5 bottom-0.5 w-[calc(50%-2px)] bg-white rounded-full shadow-md transition-transform duration-300 ease-in-out"
+                        style={{ transform: activeTab === 'order' ? 'translateX(2px)' : 'translateX(calc(100% + 2px))' }}
+                    />
+                    <button 
+                        onClick={() => setActiveTab('order')} 
+                        className={`relative z-10 w-1/2 py-1.5 text-center text-sm font-semibold transition-colors duration-300 ${activeTab === 'order' ? 'text-brand-dark' : 'text-gray-500'}`}>
+                        Yeni Sipariş
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('status')} 
+                        className={`relative z-10 w-1/2 py-1.5 text-center text-sm font-semibold transition-colors duration-300 ${activeTab === 'status' ? 'text-brand-dark' : 'text-gray-500'}`}>
+                        Hesabım
+                    </button>
+                </div>
             </div>
+
+            {/* --- Category Nav --- */}
+            {activeTab === 'order' && (
+                <div ref={categoryNavRef} className="flex space-x-4 overflow-x-auto scrollbar-hide px-4 py-2">
+                    {menuCategories.map(category => (
+                        <button
+                            key={category.id}
+                            data-cat-id={category.id}
+                            onClick={() => handleNavClick(category.id)}
+                            className={`py-1 px-3 rounded-full text-sm font-medium whitespace-nowrap transition-colors duration-300 ${activeCategory === category.id ? 'bg-brand-dark text-white' : 'bg-gray-200 text-gray-700'}`}
+                        >
+                            {category.name}
+                        </button>
+                    ))}
+                </div>
+            )}
         </div>
         
         {activeTab === 'order' && (
              <main className="container mx-auto p-4 fade-in">
                 {menuCategories.map(category => (
-                    <section key={category.id} className="mb-8">
+                    <section 
+                        key={category.id}
+                        id={`category-${category.id}`}
+                        ref={el => (categoryRefs.current[category.id] = el)}
+                        className="mb-8 pt-2"
+                    >
                         <h2 className="text-3xl font-bold text-brand-dark mb-4 border-b-2 border-brand-gold pb-2">{category.name}</h2>
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             {category.menu_items.map(item => {
@@ -221,7 +293,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
                                 return (
                                     <div key={item.id} className="bg-white rounded-lg shadow-md flex flex-col relative">
                                         {quantityInCart > 0 && (
-                                            <div key={`${item.id}-${quantityInCart}`} className="absolute top-1 right-1 bg-red-600 text-white text-sm font-bold rounded-full w-7 h-7 flex items-center justify-center border-2 border-white notification-pop z-10">
+                                            <div key={`${item.id}-${quantityInCart}`} className="absolute -top-2 -right-2 bg-red-600 text-white text-sm font-bold rounded-full w-8 h-8 flex items-center justify-center border-2 border-white notification-pop z-10">
                                                 {quantityInCart}
                                             </div>
                                         )}
@@ -306,15 +378,15 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
         )}
         
         {activeTab === 'order' && cart.length > 0 && (
-            <footer className="fixed bottom-0 left-0 right-0 bg-brand-dark text-white p-4 shadow-2xl z-50 transform transition-transform duration-300 ease-out">
-                <div className="container mx-auto flex justify-between items-center">
-                    <div>
-                        <span className="text-lg font-semibold">{totalItems} ürün</span>
-                        <span className="mx-2">|</span>
-                        <span className="text-xl font-bold">{formatCurrency(total)}</span>
+            <footer className="fixed bottom-0 left-0 right-0 bg-brand-dark text-white p-3 shadow-2xl z-50 transform transition-transform duration-300 ease-out">
+                <div className="container mx-auto flex justify-between items-center gap-2">
+                    <div className="flex-shrink min-w-0">
+                        <p className="text-sm font-semibold truncate whitespace-nowrap">
+                            {totalItems} ürün <span className="mx-1">|</span> {formatCurrency(total)}
+                        </p>
                     </div>
-                    <button onClick={() => setIsConfirming(true)} className="bg-brand-gold text-white font-bold py-3 px-6 rounded-lg text-lg hover:bg-opacity-90 transition-all duration-300 flex items-center whitespace-nowrap">
-                        <i className="fas fa-shopping-cart mr-2"></i> Siparişi Onayla
+                    <button onClick={() => setIsConfirming(true)} className="bg-brand-gold text-white font-bold py-2 px-4 rounded-lg text-base hover:bg-opacity-90 transition-all duration-300 flex items-center whitespace-nowrap flex-shrink-0">
+                        Siparişi Onayla
                     </button>
                 </div>
                 {orderStatus === 'error' && (
