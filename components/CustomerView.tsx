@@ -195,24 +195,26 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
                         {category.menu_items.map(item => {
                             const quantityInCart = cart.find(ci => ci.id === item.id)?.quantity || 0;
                             return (
-                                <div key={item.id} className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+                                <div key={item.id} className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col relative">
+                                    {quantityInCart > 0 && (
+                                        <div key={`${item.id}-${quantityInCart}`} className="absolute top-0 right-0 -mt-2 -mr-2 bg-red-600 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center border-2 border-white notification-pop z-10">
+                                            {quantityInCart}
+                                        </div>
+                                    )}
                                     <img src={item.image_url || 'https://placehold.co/300x200/eee/ccc?text=Görsel'} alt={item.name} className="w-full h-32 object-cover"/>
                                     <div className="p-3 flex flex-col flex-grow">
                                         <h3 className="font-bold text-md text-gray-800">{item.name}</h3>
                                         <p className="text-xs text-gray-600 flex-grow mt-1">{item.description}</p>
                                         <div className="flex justify-between items-center mt-3">
                                             <span className="font-semibold text-brand-dark text-lg">{item.price?.toFixed(2)} TL</span>
-                                            {quantityInCart === 0 ? (
-                                                <button onClick={() => handleUpdateQuantity(item, 1)} className="bg-brand-gold text-white rounded-full w-8 h-8 text-lg hover:bg-opacity-90 transition-transform duration-200 active:scale-90">
+                                            <div className="flex items-center gap-2">
+                                                {quantityInCart > 0 && (
+                                                    <button onClick={() => handleUpdateQuantity(item, quantityInCart - 1)} className="bg-gray-200 text-brand-dark rounded-full w-8 h-8 text-lg font-bold hover:bg-gray-300 transition-colors duration-200 active:scale-90">-</button>
+                                                )}
+                                                <button onClick={() => handleUpdateQuantity(item, quantityInCart + 1)} className="bg-brand-gold text-white rounded-full w-8 h-8 text-lg hover:bg-opacity-90 transition-transform duration-200 active:scale-90">
                                                     <i className="fas fa-plus"></i>
                                                 </button>
-                                            ) : (
-                                                <div className="flex items-center gap-2 bg-gray-200 rounded-full">
-                                                    <button onClick={() => handleUpdateQuantity(item, quantityInCart - 1)} className="text-brand-dark rounded-full w-7 h-7 text-lg hover:bg-gray-300 transition-colors">-</button>
-                                                    <span className="font-bold text-brand-dark text-md w-4 text-center">{quantityInCart}</span>
-                                                    <button onClick={() => handleUpdateQuantity(item, quantityInCart + 1)} className="text-brand-dark rounded-full w-7 h-7 text-lg hover:bg-gray-300 transition-colors">+</button>
-                                                </div>
-                                            )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -241,7 +243,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
                         <span className="mx-2">|</span>
                         <span className="text-xl font-bold">{total.toFixed(2)} TL</span>
                     </div>
-                    <button onClick={() => setIsConfirming(true)} className="bg-brand-gold text-white font-bold py-3 px-6 rounded-lg text-lg hover:bg-opacity-90 transition-all duration-300 flex items-center">
+                    <button onClick={() => setIsConfirming(true)} className="bg-brand-gold text-white font-bold py-3 px-6 rounded-lg text-lg hover:bg-opacity-90 transition-all duration-300 flex items-center whitespace-nowrap">
                         <i className="fas fa-shopping-cart mr-2"></i> Siparişi Onayla
                     </button>
                 </div>

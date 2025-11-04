@@ -143,15 +143,15 @@ const OrderTakingMenu: React.FC<{ tableNumber: number; onOrderPlaced: () => void
                                     {category.menu_items.map(item => {
                                         const quantityInCart = cart.find(ci => ci.id === item.id)?.quantity || 0;
                                         return (
-                                            <div key={item.id} className={`border rounded-lg p-3 flex justify-between items-center transition-colors ${quantityInCart > 0 ? 'bg-amber-100 border-amber-300' : 'bg-white'}`}>
+                                            <div key={item.id} className={`border rounded-lg p-4 flex justify-between items-center transition-colors ${quantityInCart > 0 ? 'bg-amber-100 border-amber-300' : 'bg-white'}`}>
                                                 <div>
-                                                    <h4 className="font-semibold text-gray-800">{item.name}</h4>
-                                                    <span className="text-sm text-gray-600">{item.price?.toFixed(2)} TL</span>
+                                                    <h4 className="font-bold text-lg text-gray-800">{item.name}</h4>
+                                                    <span className="text-base text-gray-600">{item.price?.toFixed(2)} TL</span>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <button onClick={() => handleUpdateQuantity(item, quantityInCart - 1)} className="bg-gray-200 text-brand-dark rounded-full w-8 h-8 text-lg font-bold hover:bg-gray-300 transition-colors disabled:opacity-50" disabled={quantityInCart === 0}>-</button>
-                                                    <span className="font-bold text-brand-dark text-lg w-5 text-center">{quantityInCart > 0 ? quantityInCart : ''}</span>
-                                                    <button onClick={() => handleUpdateQuantity(item, quantityInCart + 1)} className="bg-gray-200 text-brand-dark rounded-full w-8 h-8 text-lg font-bold hover:bg-gray-300 transition-colors">+</button>
+                                                    <button onClick={() => handleUpdateQuantity(item, quantityInCart - 1)} className="bg-gray-200 text-brand-dark rounded-full w-10 h-10 text-xl font-bold hover:bg-gray-300 transition-colors disabled:opacity-50" disabled={quantityInCart === 0}>-</button>
+                                                    <span className="font-bold text-brand-dark text-xl w-8 text-center">{quantityInCart > 0 ? quantityInCart : ''}</span>
+                                                    <button onClick={() => handleUpdateQuantity(item, quantityInCart + 1)} className="bg-gray-200 text-brand-dark rounded-full w-10 h-10 text-xl font-bold hover:bg-gray-300 transition-colors">+</button>
                                                 </div>
                                             </div>
                                         )
