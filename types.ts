@@ -1,4 +1,3 @@
-
 export interface SiteConfig {
   id: number;
   hero_title: string;
@@ -43,4 +42,79 @@ export interface MenuItem {
 
 export interface MenuCategoryWithItems extends MenuCategory {
   menu_items: MenuItem[];
+}
+
+// Order Management System Types
+export interface Table {
+  id: number;
+  table_number: number;
+}
+
+export interface Visit {
+  id: string; // UUID
+  table_id: number;
+  status: 'active' | 'closed';
+  created_at: string;
+  closed_at?: string;
+}
+
+export interface Order {
+  id: string; // UUID
+  visit_id: string; // UUID
+  waiter_id?: string; // UUID
+  status: 'new' | 'preparing' | 'ready' | 'delivered';
+  created_at: string;
+}
+
+export interface OrderItem {
+  id: number;
+  order_id: string; // UUID
+  menu_item_id: number;
+  quantity: number;
+  price: number;
+  status: 'pending' | 'prepared';
+}
+
+export interface CartItem extends MenuItem {
+  quantity: number;
+}
+
+export interface OrderWithDetails extends Order {
+  visits: {
+    tables: {
+      table_number: number;
+    } | null;
+  } | null;
+  order_items: (OrderItem & {
+    menu_items: { name: string } | null;
+  })[];
+}
+
+export interface VisitWithDetails extends Visit {
+  tables: {
+    table_number: number;
+  } | null;
+  orders: (Order & {
+    order_items: (OrderItem & {
+        menu_items: { name: string } | null;
+    })[];
+  })[];
+}
+
+export interface TableWithStatus {
+    id: number; // table id
+    table_number: number;
+    visit_id: string | null;
+    visit_status: 'active' | null;
+    has_ready_orders: boolean;
+}
+
+// Admin Dashboard Types
+export interface DashboardStats {
+  total_revenue: number;
+  total_visits: number;
+  popular_items: {
+    name: string;
+    total_quantity: number;
+  }[];
 }

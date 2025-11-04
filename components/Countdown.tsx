@@ -56,10 +56,10 @@ const Countdown: React.FC<CountdownProps> = ({ targetDate, enabled }) => {
     };
     return (
       <div key={interval} className="text-center">
-        <div className="text-4xl md:text-6xl font-extrabold text-white bg-white/10 backdrop-blur-sm rounded-lg p-4 w-24 h-24 flex items-center justify-center">
+        <div className="text-2xl sm:text-4xl md:text-6xl font-extrabold text-white bg-white/10 backdrop-blur-sm rounded-lg p-2 sm:p-3 md:p-4 w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 flex items-center justify-center">
           <span>{String(value).padStart(2, '0')}</span>
         </div>
-        <div className="mt-2 text-sm md:text-base font-semibold text-gray-300 uppercase tracking-wider">{labels[interval]}</div>
+        <div className="mt-2 text-xs sm:text-sm md:text-base font-semibold text-gray-300 uppercase tracking-wider">{labels[interval]}</div>
       </div>
     );
   });
@@ -68,7 +68,7 @@ const Countdown: React.FC<CountdownProps> = ({ targetDate, enabled }) => {
     <section className="py-16 md:py-20 bg-[#1e202a]" data-aos="fade-up">
       <div className="container mx-auto px-4 text-center">
         <h2 className="text-3xl md:text-4xl font-bold text-brand-gold mb-8">Büyük Açılışa Kalan Süre</h2>
-        <div className="flex justify-center items-center space-x-2 md:space-x-6">
+        <div className="flex justify-center items-center space-x-1 sm:space-x-4 md:space-x-6">
           {timerComponents.length > 0 ? timerComponents : <p className="text-white text-2xl">Açılış Zamanı Geldi!</p>}
         </div>
       </div>

@@ -19,6 +19,9 @@
     
     <style>
         body { font-family: 'Inter', sans-serif; }
+        body.modal-open {
+            overflow: hidden;
+        }
         .hero-clip {
             clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
         }
@@ -61,6 +64,185 @@
            -webkit-box-orient: vertical;
            -webkit-line-clamp: 2;
         }
+        /* Customer View Specific Styles */
+        .cart-item-enter {
+            opacity: 0;
+            transform: scale(0.9);
+        }
+        .cart-item-enter-active {
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 300ms, transform 300ms;
+        }
+        .cart-item-exit {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .cart-item-exit-active {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: opacity 300ms, transform 300ms;
+        }
+        .fade-in {
+            animation: fadeInAnimation 0.5s ease-in-out forwards;
+        }
+        @keyframes fadeInAnimation {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        /* Kitchen View Kanban Styles (Base Card Styles) */
+        .kanban-card {
+            background-color: white;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            cursor: pointer;
+            transition: box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out;
+            border-left: 5px solid transparent;
+        }
+        .kanban-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transform: translateY(-2px);
+        }
+        .kanban-card.status-new { border-left-color: #3b82f6; }
+        .kanban-card.status-preparing { border-left-color: #f59e0b; }
+        .kanban-card.status-ready { border-left-color: #10b981; }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeInAnimation 0.3s ease-in-out forwards;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            max-width: 90%;
+            width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .notification-pop {
+            animation: pop-in 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+        }
+        @keyframes pop-in {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .item-checkbox {
+            transform: scale(1.2);
+            accent-color: #b98d4a;
+        }
+
+        /* Cashier View Styles */
+        .visit-card {
+            border: 2px solid transparent;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        .visit-card.selected {
+            background-color: #fefce8; /* yellow-50 */
+            border-color: #b98d4a; /* brand-gold */
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #printable-receipt, #printable-receipt * {
+                visibility: visible;
+            }
+            #printable-receipt {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                font-family: 'Courier New', Courier, monospace;
+            }
+        }
+
+        /* Waiter View Styles */
+        .table-card {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.75rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            border: 3px solid transparent;
+            position: relative;
+        }
+        .table-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+        .table-card.status-available {
+            background-color: #f0fdf4; /* green-50 */
+            color: #15803d; /* green-700 */
+            border-color: #bbf7d0; /* green-200 */
+        }
+        .table-card.status-occupied {
+            background-color: #fffbeb; /* yellow-50 */
+            color: #b45309; /* amber-700 */
+            border-color: #fde68a; /* amber-200 */
+        }
+        .table-card.status-ready {
+            background-color: #eff6ff; /* blue-50 */
+            color: #1d4ed8; /* blue-700 */
+            border-color: #93c5fd; /* blue-300 */
+            animation: pulse-blue 2s infinite;
+        }
+        @keyframes pulse-blue {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+        .waiter-modal-content {
+            background-color: #f9fafb; /* gray-50 */
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Admin Panel - Table Management Hover Effect */
+        .js-table-delete {
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        [data-table-id]:hover .js-table-delete {
+            opacity: 1;
+        }
+
+        /* Admin Panel - Dashboard & Tabs */
+        .admin-tab {
+            transition: all 0.2s ease-in-out;
+        }
+        .admin-tab.active {
+            border-bottom-color: #b98d4a;
+            color: #b98d4a;
+            font-weight: 600;
+        }
+        .kpi-card {
+            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+            border-left: 5px solid #b98d4a;
+        }
+
     </style>
 <script type="importmap">
 {
@@ -94,7 +276,7 @@
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     
     <!-- Sürükle-Bırak Kütüphanesi for Admin Panel -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js" crossorigin="anonymous"></script>
 
     <!-- SUPABASE KÜTÜPHANESİ for Admin Panel (global window.supabase) -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>

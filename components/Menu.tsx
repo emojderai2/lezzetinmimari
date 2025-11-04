@@ -57,7 +57,7 @@ const Menu: React.FC<MenuProps> = ({ categories, isLoading }) => {
           )}
           {!isLoading && categories.map((category) => {
             const categoryItems = category.menu_items;
-            if (categoryItems.length === 0) return null;
+            if (!categoryItems || categoryItems.length === 0) return null;
 
             const isDrinkCategory = category.name.toLowerCase().includes('içecek');
             const itemGridClass = isDrinkCategory

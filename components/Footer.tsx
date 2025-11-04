@@ -13,10 +13,10 @@ const Footer: React.FC = () => {
         </p>
         <div className="mt-6">
           <button 
-            onClick={() => { window.location.hash = 'admin'; }}
+            onClick={() => { window.location.hash = 'employee'; }}
             className="inline-block bg-gray-200 text-gray-800 font-semibold py-2 px-5 rounded-lg shadow-sm hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#b98d4a] transition-all duration-300"
           >
-            Yönetici Paneli
+            Çalışan Arayüzü
           </button>
         </div>
       </div>
