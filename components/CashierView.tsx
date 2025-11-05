@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { VisitWithDetails, OrderItem, RolePins } from '../types';
-import { fetchActiveVisits, closeVisit, subscribeToCashierUpdates, fetchRolePins } from '../services/supabaseService';
+import { fetchActiveVisits, closeVisit, fetchRolePins } from '../services/supabaseService';
 
 const formatCurrency = (price: number | null | undefined) => {
   if (price === null || price === undefined) return '';
@@ -76,64 +76,87 @@ const PrintableReceipt: React.FC<PrintableReceiptProps> = ({ visit, total }) => 
 const PinEntry: React.FC<{ onPinVerified: () => void; correctPin: string; roleName: string }> = ({ onPinVerified, correctPin, roleName }) => {
     const [pin, setPin] = useState('');
     const [error, setError] = useState('');
-    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const [isShaking, setIsShaking] = useState(false);
 
-    const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-        const { value } = e.target;
-        if (/^\d*$/.test(value) && value.length <= 1) {
-            const newPin = pin.split('');
-            newPin[index] = value;
-            setPin(newPin.join(''));
-
-            if (value && index < 3) {
-                inputRefs.current[index + 1]?.focus();
-            }
-        }
-    };
-    
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-        if (e.key === 'Backspace' && !pin[index] && index > 0) {
-            inputRefs.current[index - 1]?.focus();
-        }
-    };
-    
     useEffect(() => {
-        if(pin.length === 4) {
+        if (pin.length === 4) {
             if (pin === correctPin) {
                 onPinVerified();
             } else {
                 setError('Hatalı PIN. Lütfen tekrar deneyin.');
-                setPin('');
-                inputRefs.current[0]?.focus();
+                setIsShaking(true);
+                setTimeout(() => {
+                    setIsShaking(false);
+                    setPin('');
+                }, 820); // Corresponds to animation duration
             }
-        } else {
-            setError('');
         }
     }, [pin, correctPin, onPinVerified]);
+    
+    // Clear error message when user starts typing again
+    useEffect(() => {
+        if (pin.length > 0 && error) {
+            setError('');
+        }
+    }, [pin, error]);
 
+    const handleNumberClick = (num: string) => {
+        if (pin.length < 4) {
+            setPin(pin + num);
+        }
+    };
+
+    const handleDeleteClick = () => {
+        setPin(pin.slice(0, -1));
+    };
+
+    const numpadLayout = [
+        '1', '2', '3',
+        '4', '5', '6',
+        '7', '8', '9',
+        '', '0', 'DEL'
+    ];
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-brand-dark p-4">
-            <div className="w-full max-w-sm bg-white p-8 rounded-2xl shadow-xl text-center">
-                 <h1 className="text-3xl font-bold text-brand-dark mb-2">{roleName} Girişi</h1>
-                 <p className="text-gray-600 mb-6">Lütfen devam etmek için 4 haneli PIN kodunuzu girin.</p>
-                 <div className="flex justify-center gap-3 mb-4">
-                    {[0, 1, 2, 3].map(i => (
-                        <input
-                            key={i}
-                            // FIX: Use a block body for the ref callback to prevent an implicit return value,
-                            // which was causing a TypeScript type error.
-                            ref={el => { inputRefs.current[i] = el; }}
-                            type="text"
-                            maxLength={1}
-                            value={pin[i] || ''}
-                            onChange={e => handlePinChange(e, i)}
-                            onKeyDown={e => handleKeyDown(e, i)}
-                            className="w-14 h-16 text-center text-3xl font-bold border-2 border-gray-300 rounded-lg focus:outline-none focus:border-brand-gold"
-                        />
+            <div className="w-full max-w-xs bg-white p-8 rounded-2xl shadow-xl text-center">
+                 <h1 className="text-2xl font-bold text-brand-dark mb-2">{roleName} Girişi</h1>
+                 <p className="text-gray-600 mb-6 text-sm">Devam etmek için 4 haneli PIN kodunuzu girin.</p>
+                 
+                 <div className={`flex justify-center gap-4 mb-2 ${isShaking ? 'shake' : ''}`}>
+                    {Array(4).fill(0).map((_, i) => (
+                        <div key={i} className={`w-5 h-5 rounded-full border-2 transition-all duration-300 ${pin.length > i ? 'bg-brand-dark border-brand-dark' : 'border-gray-300 bg-transparent'}`}></div>
                     ))}
                  </div>
-                 {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+                 
+                 <p className="text-red-500 text-sm h-5 mb-4">{error}</p>
+
+                 <div className="grid grid-cols-3 gap-4">
+                     {numpadLayout.map((key) => {
+                         if (key === '') return <div key="placeholder"></div>;
+                         if (key === 'DEL') {
+                             return (
+                                 <button 
+                                     key="delete" 
+                                     onClick={handleDeleteClick}
+                                     className="h-16 bg-gray-100 rounded-full text-2xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-gold transition-colors"
+                                >
+                                    <i className="fas fa-backspace"></i>
+                                </button>
+                             );
+                         }
+                         return (
+                            <button 
+                                key={key}
+                                onClick={() => handleNumberClick(key)}
+                                className="h-16 bg-gray-100 rounded-full text-2xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-gold transition-colors"
+                            >
+                                {key}
+                            </button>
+                         );
+                     })}
+                 </div>
+                 
                  <div className="mt-8">
                     <a onClick={() => window.location.hash = 'employee'} className="text-sm text-gray-500 hover:text-brand-gold">
                         <i className="fas fa-arrow-left mr-1"></i>
@@ -145,7 +168,6 @@ const PinEntry: React.FC<{ onPinVerified: () => void; correctPin: string; roleNa
     );
 };
 
-
 const CashierView: React.FC = () => {
     const [visits, setVisits] = useState<VisitWithDetails[]>([]);
     const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null);
@@ -154,6 +176,7 @@ const CashierView: React.FC = () => {
     
     const [isAuthenticated, setIsAuthenticated] = useState(sessionStorage.getItem('cashier_pin_verified') === 'true');
     const [correctPin, setCorrectPin] = useState<string | null>(null);
+
 
     useEffect(() => {
         const getPins = async () => {
@@ -194,25 +217,13 @@ const CashierView: React.FC = () => {
         }
     }, [selectedVisitId]);
 
-
     useEffect(() => {
         if (!isAuthenticated) return;
-        
+
         fetchAndSetVisits();
-        
-        const channel = subscribeToCashierUpdates(fetchAndSetVisits);
+        const interval = setInterval(fetchAndSetVisits, 15000);
 
-        // Setup polling as a fallback mechanism
-        const pollingId = setInterval(() => {
-            console.log('Polling cashier for updates...');
-            fetchAndSetVisits();
-        }, 10000); // every 10 seconds
-
-        return () => {
-            console.log('CashierView: Cleaning up subscription and polling.');
-            clearInterval(pollingId);
-            channel.unsubscribe();
-        };
+        return () => clearInterval(interval);
     }, [fetchAndSetVisits, isAuthenticated]);
     
     const handlePinVerified = () => {
@@ -341,7 +352,9 @@ const CashierView: React.FC = () => {
         <div className="bg-white min-h-screen">
             <header className="bg-brand-dark shadow-md sticky top-0 z-40 text-white h-[60px] flex items-center">
                 <div className="container mx-auto px-4 flex justify-between items-center">
-                    <h1 className="text-xl md:text-2xl font-bold">Kasa Ekranı</h1>
+                    <div className="flex items-center space-x-4">
+                        <h1 className="text-xl md:text-2xl font-bold">Kasa Ekranı</h1>
+                    </div>
                     <div className="space-x-2 md:space-x-4">
                         <a onClick={() => window.location.hash = 'employee'} className="text-xs md:text-sm bg-gray-600 text-white py-2 px-3 md:px-4 rounded-lg hover:bg-gray-700 transition cursor-pointer">
                            <i className="fas fa-users md:mr-2"></i><span className="hidden md:inline">Çalışan Arayüzü</span>

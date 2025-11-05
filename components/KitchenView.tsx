@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { OrderWithDetails, OrderItem, RolePins, MenuCategoryWithItems } from '../types';
 import {
-  getSupabaseClient,
   fetchKitchenOrders,
   updateOrderStatus,
   updateOrderItemStatus,
-  subscribeToKitchenUpdates,
   revertOrderItemsStatus,
   fetchRolePins,
-  fetchVisibleMenuData
+  fetchVisibleMenuData,
 } from '../services/supabaseService';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 
 type OrderStatus = 'new' | 'preparing' | 'ready';
 
@@ -34,64 +31,87 @@ const KITCHEN_COLUMNS: { id: OrderStatus, title: string }[] = [
 const PinEntry: React.FC<{ onPinVerified: () => void; correctPin: string; roleName: string }> = ({ onPinVerified, correctPin, roleName }) => {
     const [pin, setPin] = useState('');
     const [error, setError] = useState('');
-    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+    const [isShaking, setIsShaking] = useState(false);
 
-    const handlePinChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-        const { value } = e.target;
-        if (/^\d*$/.test(value) && value.length <= 1) {
-            const newPin = pin.split('');
-            newPin[index] = value;
-            setPin(newPin.join(''));
-
-            if (value && index < 3) {
-                inputRefs.current[index + 1]?.focus();
-            }
-        }
-    };
-    
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-        if (e.key === 'Backspace' && !pin[index] && index > 0) {
-            inputRefs.current[index - 1]?.focus();
-        }
-    };
-    
     useEffect(() => {
-        if(pin.length === 4) {
+        if (pin.length === 4) {
             if (pin === correctPin) {
                 onPinVerified();
             } else {
                 setError('Hatalı PIN. Lütfen tekrar deneyin.');
-                setPin('');
-                inputRefs.current[0]?.focus();
+                setIsShaking(true);
+                setTimeout(() => {
+                    setIsShaking(false);
+                    setPin('');
+                }, 820); // Corresponds to animation duration
             }
-        } else {
-            setError('');
         }
     }, [pin, correctPin, onPinVerified]);
+    
+    // Clear error message when user starts typing again
+    useEffect(() => {
+        if (pin.length > 0 && error) {
+            setError('');
+        }
+    }, [pin, error]);
 
+    const handleNumberClick = (num: string) => {
+        if (pin.length < 4) {
+            setPin(pin + num);
+        }
+    };
+
+    const handleDeleteClick = () => {
+        setPin(pin.slice(0, -1));
+    };
+
+    const numpadLayout = [
+        '1', '2', '3',
+        '4', '5', '6',
+        '7', '8', '9',
+        '', '0', 'DEL'
+    ];
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-brand-dark p-4">
-            <div className="w-full max-w-sm bg-white p-8 rounded-2xl shadow-xl text-center">
-                 <h1 className="text-3xl font-bold text-brand-dark mb-2">{roleName} Girişi</h1>
-                 <p className="text-gray-600 mb-6">Lütfen devam etmek için 4 haneli PIN kodunuzu girin.</p>
-                 <div className="flex justify-center gap-3 mb-4">
-                    {[0, 1, 2, 3].map(i => (
-                        <input
-                            key={i}
-                            // FIX: Use a block body for the ref callback to prevent an implicit return value,
-                            // which was causing a TypeScript type error.
-                            ref={el => { inputRefs.current[i] = el; }}
-                            type="text"
-                            maxLength={1}
-                            value={pin[i] || ''}
-                            onChange={e => handlePinChange(e, i)}
-                            onKeyDown={e => handleKeyDown(e, i)}
-                            className="w-14 h-16 text-center text-3xl font-bold border-2 border-gray-300 rounded-lg focus:outline-none focus:border-brand-gold"
-                        />
+            <div className="w-full max-w-xs bg-white p-8 rounded-2xl shadow-xl text-center">
+                 <h1 className="text-2xl font-bold text-brand-dark mb-2">{roleName} Girişi</h1>
+                 <p className="text-gray-600 mb-6 text-sm">Devam etmek için 4 haneli PIN kodunuzu girin.</p>
+                 
+                 <div className={`flex justify-center gap-4 mb-2 ${isShaking ? 'shake' : ''}`}>
+                    {Array(4).fill(0).map((_, i) => (
+                        <div key={i} className={`w-5 h-5 rounded-full border-2 transition-all duration-300 ${pin.length > i ? 'bg-brand-dark border-brand-dark' : 'border-gray-300 bg-transparent'}`}></div>
                     ))}
                  </div>
-                 {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
+                 
+                 <p className="text-red-500 text-sm h-5 mb-4">{error}</p>
+
+                 <div className="grid grid-cols-3 gap-4">
+                     {numpadLayout.map((key) => {
+                         if (key === '') return <div key="placeholder"></div>;
+                         if (key === 'DEL') {
+                             return (
+                                 <button 
+                                     key="delete" 
+                                     onClick={handleDeleteClick}
+                                     className="h-16 bg-gray-100 rounded-full text-2xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-gold transition-colors"
+                                >
+                                    <i className="fas fa-backspace"></i>
+                                </button>
+                             );
+                         }
+                         return (
+                            <button 
+                                key={key}
+                                onClick={() => handleNumberClick(key)}
+                                className="h-16 bg-gray-100 rounded-full text-2xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-gold transition-colors"
+                            >
+                                {key}
+                            </button>
+                         );
+                     })}
+                 </div>
+                 
                  <div className="mt-8">
                     <a onClick={() => window.location.hash = 'employee'} className="text-sm text-gray-500 hover:text-brand-gold">
                         <i className="fas fa-arrow-left mr-1"></i>
@@ -108,11 +128,12 @@ const KitchenView: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedOrder, setSelectedOrder] = useState<OrderWithDetails | null>(null);
-    const notificationSoundRef = useRef<HTMLAudioElement>(null);
+    const notificationSoundRef = useRef<HTMLAudioElement | null>(null);
     const [isNotifying, setIsNotifying] = useState(false);
     
     const [isAuthenticated, setIsAuthenticated] = useState(sessionStorage.getItem('kitchen_pin_verified') === 'true');
     const [correctPin, setCorrectPin] = useState<string | null>(null);
+
 
     // Filter Mode State
     const [filteredItemIds, setFilteredItemIds] = useState<Set<number>>(new Set());
@@ -122,8 +143,15 @@ const KitchenView: React.FC = () => {
     const filterButtonRef = useRef<HTMLButtonElement>(null);
     
     const isFilterModeActive = filteredItemIds.size > 0;
-    const channelRef = useRef<RealtimeChannel | null>(null);
 
+    // Initialize Audio object once user is authenticated
+    useEffect(() => {
+        if (isAuthenticated && !notificationSoundRef.current) {
+            const audio = new Audio("https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3");
+            audio.preload = 'auto';
+            notificationSoundRef.current = audio;
+        }
+    }, [isAuthenticated]);
 
     // Fetch menu for filter panel once
     useEffect(() => {
@@ -160,18 +188,17 @@ const KitchenView: React.FC = () => {
         }
     }, [isAuthenticated]);
 
-    // Stable function to fetch orders. `useCallback` with an empty dependency array
-    // ensures this function reference doesn't change across renders.
     const fetchAndSetOrders = useCallback(async (isInitialLoad = false) => {
-        if (!isInitialLoad) console.log("Re-fetching orders due to real-time update...");
+        if (!isInitialLoad) console.log("[Kitchen Polling] Re-fetching orders...");
         try {
             const fetchedOrders = await fetchKitchenOrders();
              setOrders(currentOrders => {
                 const isUpdate = currentOrders.length > 0;
                 if (isUpdate && fetchedOrders.length > currentOrders.length) {
                     const newOrderExists = fetchedOrders.some(fo => fo.status === 'new' && !currentOrders.some(o => o.id === fo.id));
-                    if (newOrderExists) {
-                        notificationSoundRef.current?.play().catch(e => console.error("Audio play failed:", e));
+                    if (newOrderExists && notificationSoundRef.current) {
+                        notificationSoundRef.current.currentTime = 0; // Play from the start
+                        notificationSoundRef.current.play().catch(e => console.error("Audio play failed:", e));
                         setIsNotifying(true);
                         setTimeout(() => setIsNotifying(false), 800);
                     }
@@ -184,49 +211,15 @@ const KitchenView: React.FC = () => {
         }
     }, []);
 
-    // Effect for loading initial data and setting up the real-time subscription & polling.
     useEffect(() => {
-        if (!isAuthenticated) {
-            return;
-        }
+        if (!isAuthenticated) return;
 
-        console.log('KitchenView: Authenticated. Running effect to load data and subscribe.');
-        
         setIsLoading(true);
-        fetchAndSetOrders(true).finally(() => {
-            setIsLoading(false);
-        });
+        fetchAndSetOrders(true).finally(() => setIsLoading(false));
 
-        const supabase = getSupabaseClient();
-        
-        // Clean up any existing channels from this client instance to be safe.
-        supabase.removeAllChannels();
-        console.log('KitchenView: All previous Supabase channels removed.');
+        const interval = setInterval(() => fetchAndSetOrders(), 10000);
 
-        console.log('KitchenView: Setting up new real-time subscription.');
-        const channel = subscribeToKitchenUpdates(() => {
-            console.log('>>> REAL-TIME EVENT RECEIVED! <<<');
-            fetchAndSetOrders();
-        });
-        channelRef.current = channel;
-
-        // Setup polling as a fallback mechanism
-        const pollingId = setInterval(() => {
-            console.log('Polling kitchen for updates...');
-            fetchAndSetOrders();
-        }, 10000); // every 10 seconds
-
-        // The cleanup function for this effect. Runs when the component unmounts.
-        return () => {
-            console.log('KitchenView: Cleaning up subscription and polling effect.');
-            clearInterval(pollingId); // Clear polling
-            if (channelRef.current) {
-                supabase.removeChannel(channelRef.current)
-                    .then(status => console.log('Channel removed with status:', status));
-                channelRef.current = null;
-            }
-        };
-    // The dependency array only contains `isAuthenticated`. This is critical.
+        return () => clearInterval(interval);
     }, [isAuthenticated, fetchAndSetOrders]);
     
     
@@ -514,7 +507,9 @@ const KitchenView: React.FC = () => {
             <div id="toast" className="toast"></div>
             <header className="bg-brand-dark shadow-md sticky top-0 z-40 text-white">
                 <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-                    <h1 className="text-xl md:text-2xl font-bold">Mutfak Ekranı</h1>
+                    <div className="flex items-center space-x-4">
+                        <h1 className="text-xl md:text-2xl font-bold">Mutfak Ekranı</h1>
+                    </div>
                      <div className="flex items-center space-x-2 md:space-x-4">
                         <div className="relative">
                             <button 
@@ -595,7 +590,6 @@ const KitchenView: React.FC = () => {
                 </div>
             </main>
             {renderModal()}
-            <audio ref={notificationSoundRef} src="https://assets.mixkit.co/sfx/preview/mixkit-correct-answer-tone-2870.mp3" preload="auto"></audio>
         </div>
     );
 };

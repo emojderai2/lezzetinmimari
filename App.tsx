@@ -15,6 +15,7 @@ import WaiterView from './components/WaiterView';
 import KitchenView from './components/KitchenView';
 import CashierView from './components/CashierView';
 import EmployeeHub from './components/EmployeeHub';
+import DevSwitcher from './components/DevSwitcher';
 
 
 // Assume AOS is globally available from index.html
@@ -114,74 +115,82 @@ const App: React.FC = () => {
     }
   };
 
-  // Main Router Logic
-  switch (route.path) {
-    case 'employee':
-      return <EmployeeHub />;
-    case 'admin':
-      return <AdminPanel />;
-    case 'menu':
-      const tableId = route.params[0];
-      return tableId ? <CustomerView tableId={tableId} /> : <div className="flex items-center justify-center h-screen"><div className="text-center p-8 bg-white shadow-lg rounded-lg">Masa Numarası Eksik. Lütfen QR kodu tekrar okutun.</div></div>;
-    case 'waiter':
-      return <WaiterView />;
-    case 'kitchen':
-      return <KitchenView />;
-    case 'cashier':
-      return <CashierView />;
-    case 'main':
-    default:
-      // Render Main Page Error State
-      if (error) {
-        const isConfigError = error.includes("Supabase anahtarları");
+  const renderPage = () => {
+    switch (route.path) {
+      case 'employee':
+        return <EmployeeHub />;
+      case 'admin':
+        return <AdminPanel />;
+      case 'menu':
+        const tableId = route.params[0];
+        return tableId ? <CustomerView tableId={tableId} /> : <div className="flex items-center justify-center h-screen"><div className="text-center p-8 bg-white shadow-lg rounded-lg">Masa Numarası Eksik. Lütfen QR kodu tekrar okutun.</div></div>;
+      case 'waiter':
+        return <WaiterView />;
+      case 'kitchen':
+        return <KitchenView />;
+      case 'cashier':
+        return <CashierView />;
+      case 'main':
+      default:
+        // Render Main Page Error State
+        if (error) {
+          const isConfigError = error.includes("Supabase anahtarları");
 
-        return (
-          <div className="flex items-center justify-center h-screen bg-[#f8f6f2] text-[#1e202a]">
-            <div className="text-center p-8 bg-white shadow-xl rounded-2xl max-w-2xl mx-4">
-              <i className={`fas ${isConfigError ? 'fa-cogs' : 'fa-exclamation-triangle'} text-5xl text-red-500 mb-4`}></i>
-              <h1 className="text-3xl font-bold mb-4 text-brand-dark">
-                {isConfigError ? "Yapılandırma Gerekli" : "Bir Hata Oluştu"}
-              </h1>
-              <p className="text-gray-700 text-lg">{error}</p>
-              
-              {isConfigError && (
-                 <div className="mt-6 text-left bg-gray-100 p-4 rounded-lg border-l-4 border-brand-gold">
-                    <p className="font-semibold text-gray-800">Ne Yapmalısınız?</p>
-                    <p className="mt-2 text-sm text-gray-600">
-                      AI Studio'da önizleme yapabilmek için, projenizdeki 
-                      <code className="bg-gray-300 text-gray-800 px-1 py-0.5 rounded-md mx-1 font-mono">services/supabaseService.ts</code> 
-                      dosyasını açıp kendi Supabase anahtarlarınızı girmeniz gerekmektedir. Bu işlem Netlify'daki yayınlanan sitenizi etkilemez.
-                    </p>
-                 </div>
-              )}
-              
-              {!isConfigError && (
-                <p className="mt-4 text-gray-500">Lütfen daha sonra tekrar deneyin veya internet bağlantınızı kontrol edin.</p>
-              )}
+          return (
+            <div className="flex items-center justify-center h-screen bg-[#f8f6f2] text-[#1e202a]">
+              <div className="text-center p-8 bg-white shadow-xl rounded-2xl max-w-2xl mx-4">
+                <i className={`fas ${isConfigError ? 'fa-cogs' : 'fa-exclamation-triangle'} text-5xl text-red-500 mb-4`}></i>
+                <h1 className="text-3xl font-bold mb-4 text-brand-dark">
+                  {isConfigError ? "Yapılandırma Gerekli" : "Bir Hata Oluştu"}
+                </h1>
+                <p className="text-gray-700 text-lg">{error}</p>
+                
+                {isConfigError && (
+                   <div className="mt-6 text-left bg-gray-100 p-4 rounded-lg border-l-4 border-brand-gold">
+                      <p className="font-semibold text-gray-800">Ne Yapmalısınız?</p>
+                      <p className="mt-2 text-sm text-gray-600">
+                        AI Studio'da önizleme yapabilmek için, projenizdeki 
+                        <code className="bg-gray-300 text-gray-800 px-1 py-0.5 rounded-md mx-1 font-mono">services/supabaseService.ts</code> 
+                        dosyasını açıp kendi Supabase anahtarlarınızı girmeniz gerekmektedir. Bu işlem Netlify'daki yayınlanan sitenizi etkilemez.
+                      </p>
+                   </div>
+                )}
+                
+                {!isConfigError && (
+                  <p className="mt-4 text-gray-500">Lütfen daha sonra tekrar deneyin veya internet bağlantınızı kontrol edin.</p>
+                )}
+              </div>
             </div>
+          );
+        }
+
+        // Render Main Page
+        return (
+          <div className="bg-[#f8f6f2] text-[#1e202a]">
+            <Header />
+            <main>
+              <Hero config={siteConfig} onScroll={handleSmoothScroll} />
+              <Countdown 
+                enabled={siteConfig?.countdown_enabled ?? false} 
+                targetDate={siteConfig?.countdown_target ?? ''} 
+              />
+              <BrandStory config={siteConfig} />
+              <Values config={siteConfig} />
+              <EventContent config={siteConfig} onScroll={handleSmoothScroll} />
+              <Menu categories={menuCategories} isLoading={isLoading} />
+            </main>
+            <Footer />
           </div>
         );
       }
+  };
 
-      // Render Main Page
-      return (
-        <div className="bg-[#f8f6f2] text-[#1e202a]">
-          <Header />
-          <main>
-            <Hero config={siteConfig} onScroll={handleSmoothScroll} />
-            <Countdown 
-              enabled={siteConfig?.countdown_enabled ?? false} 
-              targetDate={siteConfig?.countdown_target ?? ''} 
-            />
-            <BrandStory config={siteConfig} />
-            <Values config={siteConfig} />
-            <EventContent config={siteConfig} onScroll={handleSmoothScroll} />
-            <Menu categories={menuCategories} isLoading={isLoading} />
-          </main>
-          <Footer />
-        </div>
-      );
-    }
+  return (
+    <>
+      {renderPage()}
+      <DevSwitcher />
+    </>
+  );
 };
 
 export default App;

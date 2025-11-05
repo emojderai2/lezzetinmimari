@@ -82,9 +82,24 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
     loadData();
   }, [tableId, loadVisitData]);
   
+  // Periodically poll for visit details updates
+  useEffect(() => {
+    if (!currentVisit?.id) {
+        return; // No active visit, so nothing to poll
+    }
+
+    const interval = setInterval(() => {
+        loadVisitData();
+    }, 10000); // Poll every 10 seconds
+
+    return () => {
+        clearInterval(interval);
+    };
+  }, [currentVisit?.id, loadVisitData]);
+
   useEffect(() => {
     const handleScroll = () => {
-      const topOffset = 130; // Height of sticky headers
+      const topOffset = 100; // Adjusted for new sticky header layout
       let currentCategory: number | null = null;
       
       menuCategories.forEach(cat => {
@@ -119,7 +134,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
       const element = categoryRefs.current[categoryId];
       if (element) {
           const topPos = element.getBoundingClientRect().top + window.pageYOffset;
-          const offset = 120;
+          const offset = 100; // Adjusted for new sticky header layout
           window.scrollTo({
               top: topPos - offset,
               behavior: 'smooth'
@@ -232,36 +247,36 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
         <header className="bg-white shadow-md sticky top-0 z-40 h-[60px] flex items-center">
             <div className="container mx-auto px-4 flex justify-between items-center">
                 <img src="https://i.imgur.com/xwoTCIK.jpeg" alt="Logo" className="h-10" />
-                <div className="text-right">
-                    <span className="text-xs text-gray-600">Masa</span>
-                    <p className="font-bold text-xl text-brand-gold">{tableId}</p>
+                
+                <div className="flex items-center gap-4">
+                    {/* Tab Selector - moved from center and made smaller */}
+                    <div className="relative flex bg-gray-200 rounded-full p-0.5">
+                        <span
+                            className="absolute top-0.5 bottom-0.5 w-[calc(50%-2px)] bg-white rounded-full shadow-md transition-transform duration-300 ease-in-out"
+                            style={{ transform: activeTab === 'order' ? 'translateX(2px)' : 'translateX(calc(100% + 2px))' }}
+                        />
+                        <button 
+                            onClick={() => setActiveTab('order')} 
+                            className={`relative z-10 py-1.5 px-4 text-center text-sm font-semibold transition-colors duration-300 ${activeTab === 'order' ? 'text-brand-dark' : 'text-gray-500'}`}>
+                            Sipariş
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('status')} 
+                            className={`relative z-10 py-1.5 px-4 text-center text-sm font-semibold transition-colors duration-300 ${activeTab === 'status' ? 'text-brand-dark' : 'text-gray-500'}`}>
+                            Hesap
+                        </button>
+                    </div>
+        
+                    <div className="text-right">
+                        <span className="text-xs text-gray-600">Masa</span>
+                        <p className="font-bold text-xl text-brand-gold">{tableId}</p>
+                    </div>
                 </div>
             </div>
         </header>
         
-        <div className="sticky top-[60px] bg-white z-30 shadow-sm">
-            {/* --- Tab Switcher --- */}
-            <div className="p-2 border-b">
-                <div className="relative flex w-full max-w-xs mx-auto bg-gray-200 rounded-full p-0.5">
-                    <span
-                        className="absolute top-0.5 bottom-0.5 w-[calc(50%-2px)] bg-white rounded-full shadow-md transition-transform duration-300 ease-in-out"
-                        style={{ transform: activeTab === 'order' ? 'translateX(2px)' : 'translateX(calc(100% + 2px))' }}
-                    />
-                    <button 
-                        onClick={() => setActiveTab('order')} 
-                        className={`relative z-10 w-1/2 py-1.5 text-center text-sm font-semibold transition-colors duration-300 ${activeTab === 'order' ? 'text-brand-dark' : 'text-gray-500'}`}>
-                        Yeni Sipariş
-                    </button>
-                    <button 
-                        onClick={() => setActiveTab('status')} 
-                        className={`relative z-10 w-1/2 py-1.5 text-center text-sm font-semibold transition-colors duration-300 ${activeTab === 'status' ? 'text-brand-dark' : 'text-gray-500'}`}>
-                        Hesabım
-                    </button>
-                </div>
-            </div>
-
-            {/* --- Category Nav --- */}
-            {activeTab === 'order' && (
+        {activeTab === 'order' && (
+             <div className="sticky top-[60px] bg-white z-30 shadow-sm border-b">
                 <div ref={categoryNavRef} className="flex space-x-4 overflow-x-auto scrollbar-hide px-4 py-2">
                     {menuCategories.map(category => (
                         <button
@@ -274,8 +289,8 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
                         </button>
                     ))}
                 </div>
-            )}
-        </div>
+            </div>
+        )}
         
         {activeTab === 'order' && (
              <main className="container mx-auto p-4 fade-in">

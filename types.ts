@@ -124,3 +124,24 @@ export interface RolePins {
     role: string;
     pin: string;
 }
+
+export interface SalesReportData {
+    totalRevenue: number;
+    totalVisits: number;
+    averageVisitValue: number;
+    categoryBreakdown: {
+        name: string;
+        revenue: number;
+        percentage: number;
+    }[];
+    productBreakdown: {
+        name: string;
+        revenue: number;
+    }[];
+    popularItems: {
+        name: string;
+        quantity: number;
+        revenue: number;
+        percentage: number;
+    }[];
+}

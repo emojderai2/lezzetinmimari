@@ -10,7 +10,7 @@ declare global {
   }
 }
 
-import { createClient, RealtimeChannel } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import type { SiteConfig, MenuCategoryWithItems, CartItem, OrderWithDetails, VisitWithDetails, TableWithStatus, Table, DashboardStats, MenuItem, MenuCategory, RolePins } from '../types';
 
 // ===================================================================================
@@ -227,35 +227,6 @@ export const revertOrderItemsStatus = async (orderId: string) => {
     }
 };
 
-
-export const subscribeToKitchenUpdates = (callback: () => void): RealtimeChannel => {
-    const channel = supabase.channel('public-kitchen-updates')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, (payload) => {
-            console.log('Change detected in orders table. Payload:', payload);
-            callback();
-        })
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'order_items' }, (payload) => {
-             console.log('Change detected in order_items table. Payload:', payload);
-             callback();
-        })
-        .subscribe((status, err) => {
-            if (status === 'SUBSCRIBED') {
-                console.log('Successfully subscribed to kitchen updates!');
-            }
-            if (status === 'CHANNEL_ERROR' || err) {
-                console.error('Subscription error:', status, err);
-            }
-            if (status === 'TIMED_OUT') {
-                console.warn('Subscription timed out.');
-            }
-            if (status === 'CLOSED') {
-                console.log('Subscription closed.');
-            }
-        });
-
-    return channel;
-};
-
 // Cashier View Functions
 export const fetchActiveVisits = async (): Promise<VisitWithDetails[]> => {
     const { data, error } = await supabase
@@ -293,26 +264,6 @@ export const closeVisit = async (visitId: string): Promise<void> => {
         throw new Error('Hesap kapatılamadı.');
     }
 };
-
-export const subscribeToCashierUpdates = (callback: () => void): RealtimeChannel => {
-    const channel = supabase.channel('public-cashier-updates')
-        .on('postgres_changes', 
-            { event: '*', schema: 'public', table: 'orders' }, 
-            () => callback()
-        )
-        .on('postgres_changes', 
-            { event: '*', schema: 'public', table: 'order_items' }, 
-            () => callback()
-        )
-         .on('postgres_changes', 
-            { event: 'INSERT', schema: 'public', table: 'visits' }, 
-            () => callback()
-        )
-        .subscribe();
-
-    return channel;
-};
-
 
 // Waiter View Functions
 export const fetchTableStatuses = async (): Promise<TableWithStatus[]> => {
@@ -352,15 +303,6 @@ export const fetchVisitDetailsForWaiter = async (visitId: string): Promise<Visit
         throw new Error('Masa detayları yüklenemedi.');
     }
     return data as VisitWithDetails | null;
-};
-
-export const subscribeToWaiterUpdates = (callback: () => void): RealtimeChannel => {
-    const channel = supabase.channel('public-waiter-updates')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => callback())
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'visits' }, () => callback())
-        .subscribe();
-    
-    return channel;
 };
 
 // Admin - Table Management Functions
@@ -413,6 +355,35 @@ export const fetchDashboardStats = async (): Promise<DashboardStats> => {
     }
     return data as DashboardStats;
 };
+
+export const fetchClosedVisitsByDateRange = async (startDate: string, endDate: string): Promise<VisitWithDetails[]> => {
+    const endOfDay = new Date(endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const { data, error } = await supabase
+        .from('visits')
+        .select(`
+            *,
+            tables ( table_number ),
+            orders (
+                *,
+                order_items (
+                    *,
+                    menu_items ( name )
+                )
+            )
+        `)
+        .eq('status', 'closed')
+        .gte('closed_at', new Date(startDate).toISOString())
+        .lte('closed_at', endOfDay.toISOString());
+
+    if (error) {
+        console.error('Error fetching closed visits:', error);
+        throw new Error('Rapor verileri çekilemedi.');
+    }
+    return data as VisitWithDetails[];
+};
+
 
 // Admin - Menu Management Functions
 export const addCategory = async (name: string): Promise<MenuCategory> => {
