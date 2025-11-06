@@ -58,7 +58,11 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
   const [activeCategory, setActiveCategory] = useState<number | null>(null);
 
   const categoryRefs = useRef<Record<number, HTMLElement | null>>({});
+  const headerRef = useRef<HTMLElement>(null);
   const categoryNavRef = useRef<HTMLDivElement>(null);
+  const [scrollOffset, setScrollOffset] = useState(120); // A safe default to start
+  const isNavigatingRef = useRef(false);
+  const navScrollTimeoutRef = useRef<number | null>(null);
 
   const loadVisitData = useCallback(async () => {
     const visitData = await fetchActiveVisitForTable(tableId);
@@ -81,6 +85,29 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
     };
     loadData();
   }, [tableId, loadVisitData]);
+
+  // Dynamically calculate the scroll offset for the sticky headers
+  useEffect(() => {
+      const calculateOffset = () => {
+          if (headerRef.current && categoryNavRef.current) {
+              const headerHeight = headerRef.current.offsetHeight;
+              const navHeight = categoryNavRef.current.offsetHeight;
+              // Total offset = header height + nav bar height + 16px extra padding
+              setScrollOffset(headerHeight + navHeight + 16);
+          }
+      };
+
+      // Use a timeout to ensure elements are rendered with correct dimensions after data load or tab switch
+      const timer = setTimeout(calculateOffset, 100);
+
+      // Recalculate on window resize as nav bar height might change due to text wrapping
+      window.addEventListener('resize', calculateOffset);
+
+      return () => {
+          clearTimeout(timer);
+          window.removeEventListener('resize', calculateOffset);
+      };
+  }, [isLoading, activeTab]);
   
   // Periodically poll for visit details updates
   useEffect(() => {
@@ -90,55 +117,85 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
 
     const interval = setInterval(() => {
         loadVisitData();
-    }, 10000); // Poll every 10 seconds
+    }, 60000); // Poll every 1 minute
 
     return () => {
         clearInterval(interval);
     };
   }, [currentVisit?.id, loadVisitData]);
 
+  // Handle scroll to update active category in nav
   useEffect(() => {
     const handleScroll = () => {
-      const topOffset = 100; // Adjusted for new sticky header layout
-      let currentCategory: number | null = null;
-      
-      menuCategories.forEach(cat => {
-          const element = categoryRefs.current[cat.id];
-          if (element) {
-              const rect = element.getBoundingClientRect();
-              if (rect.top <= topOffset) {
-                  currentCategory = cat.id;
-              }
-          }
-      });
+        if (isNavigatingRef.current) return; // Ignore scroll events during programmatic navigation
 
-      if (activeCategory !== currentCategory) {
-          setActiveCategory(currentCategory);
-          
-          // Scroll active nav item into view
-          const navButton = categoryNavRef.current?.querySelector(`[data-cat-id="${currentCategory}"]`);
-          navButton?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-      }
+        const topOffset = scrollOffset;
+        let currentCategory: number | null = null;
+        
+        menuCategories.forEach(cat => {
+            const element = categoryRefs.current[cat.id];
+            if (element) {
+                const rect = element.getBoundingClientRect();
+                if (rect.top <= topOffset) {
+                    currentCategory = cat.id;
+                }
+            }
+        });
+
+        setActiveCategory(prevActiveCategory => {
+            if (prevActiveCategory !== currentCategory) {
+                const navButton = categoryNavRef.current?.querySelector(`[data-cat-id="${currentCategory}"]`);
+                navButton?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                return currentCategory;
+            }
+            return prevActiveCategory;
+        });
     };
     
+    let scrollTimeout: number | null = null;
+    const throttledScrollHandler = () => {
+        if (scrollTimeout === null) {
+            scrollTimeout = window.setTimeout(() => {
+                handleScroll();
+                scrollTimeout = null;
+            }, 100);
+        }
+    };
+
     if (activeTab === 'order') {
-        window.addEventListener('scroll', handleScroll);
+        window.addEventListener('scroll', throttledScrollHandler);
     }
 
     return () => {
-        window.removeEventListener('scroll', handleScroll);
+        window.removeEventListener('scroll', throttledScrollHandler);
+        if (scrollTimeout) clearTimeout(scrollTimeout);
+        if (navScrollTimeoutRef.current) clearTimeout(navScrollTimeoutRef.current);
     };
-  }, [menuCategories, activeCategory, activeTab]);
+  }, [menuCategories, activeTab, scrollOffset]);
 
+
+  // Handle click on a category nav button to scroll to it
   const handleNavClick = (categoryId: number) => {
       const element = categoryRefs.current[categoryId];
       if (element) {
-          const topPos = element.getBoundingClientRect().top + window.pageYOffset;
-          const offset = 100; // Adjusted for new sticky header layout
+          isNavigatingRef.current = true;
+          setActiveCategory(categoryId); // Update UI immediately
+
+          if (navScrollTimeoutRef.current) {
+              clearTimeout(navScrollTimeoutRef.current);
+          }
+          
+          const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+          const offsetPosition = elementPosition - scrollOffset;
+          
           window.scrollTo({
-              top: topPos - offset,
+              top: offsetPosition,
               behavior: 'smooth'
           });
+
+          navScrollTimeoutRef.current = window.setTimeout(() => {
+              isNavigatingRef.current = false;
+          }, 800); // Allow 800ms for smooth scroll to finish
       }
   };
 
@@ -244,7 +301,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
 
   return (
     <div className="bg-gray-100 min-h-screen pb-32">
-        <header className="bg-white shadow-md sticky top-0 z-40 h-[60px] flex items-center">
+        <header ref={headerRef} className="bg-white shadow-md sticky top-0 z-40 h-[60px] flex items-center">
             <div className="container mx-auto px-4 flex justify-between items-center">
                 <img src="https://i.imgur.com/xwoTCIK.jpeg" alt="Logo" className="h-10" />
                 
@@ -352,7 +409,16 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
                             return (
                                 <div key={order.id} className="bg-white p-4 rounded-lg shadow-md">
                                     <div className="flex justify-between items-center border-b pb-2 mb-3">
-                                        <h3 className="font-bold text-lg text-brand-dark">Sipariş #{index + 1}</h3>
+                                        <div className="flex items-center gap-3">
+                                            <h3 className="font-bold text-lg text-brand-dark">Sipariş #{index + 1}</h3>
+                                            <span className={`font-semibold px-2 py-1 text-xs rounded-full ${
+                                                {'new': 'bg-blue-100 text-blue-800', 'preparing': 'bg-yellow-100 text-yellow-800', 'ready': 'bg-green-100 text-green-800', 'delivered': 'bg-gray-200 text-gray-700'}[order.status]
+                                            }`}>
+                                                {
+                                                    {'new': 'Mutfakta', 'preparing': 'Hazırlanıyor', 'ready': 'Servise Hazır', 'delivered': 'Servis Edildi'}[order.status]
+                                                }
+                                            </span>
+                                        </div>
                                         <span className="text-sm text-gray-500">{new Date(order.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}</span>
                                     </div>
                                     <div className="space-y-2">

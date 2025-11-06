@@ -142,7 +142,7 @@ const PinEntry: React.FC<{ onPinVerified: () => void; correctPin: string; roleNa
                                      className="h-16 bg-gray-100 rounded-full text-2xl font-semibold text-gray-800 hover:bg-gray-200 active:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-gold transition-colors"
                                 >
                                     <i className="fas fa-backspace"></i>
-                                </button>
+                                 </button>
                              );
                          }
                          return (
@@ -168,6 +168,56 @@ const PinEntry: React.FC<{ onPinVerified: () => void; correctPin: string; roleNa
     );
 };
 
+// Custom Confirmation Modal for environments that block window.confirm
+const ConfirmationModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: () => void;
+    title: string;
+    message: string;
+}> = ({ isOpen, onClose, onConfirm, title, message }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="modal-overlay">
+            <div className="modal-content">
+                <h2 className="text-2xl font-bold mb-4 text-brand-dark">{title}</h2>
+                <p className="text-gray-700">{message}</p>
+                <div className="mt-6 flex justify-end space-x-3">
+                    <button onClick={onClose} className="bg-gray-200 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300">İptal</button>
+                    <button onClick={onConfirm} className="bg-green-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-green-700">Onayla</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// Custom Print Preview Modal for environments that block window.print
+const PrintPreviewModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    visit: VisitWithDetails | null;
+    total: number;
+}> = ({ isOpen, onClose, visit, total }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="modal-overlay">
+            <div className="modal-content max-w-sm">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold text-brand-dark">Yazdırma Önizleme</h2>
+                     <button onClick={onClose} className="text-gray-500 hover:text-gray-800 text-2xl">&times;</button>
+                </div>
+                <div className="border rounded-lg p-2 bg-gray-50 max-h-[60vh] overflow-y-auto">
+                    <PrintableReceipt visit={visit} total={total} />
+                </div>
+                <div className="mt-6 text-center text-sm text-gray-600">
+                    Bu, AI Studio'da geliştirme için bir önizlemedir. Gerçek sitede standart yazdırma diyaloğu açılacaktır.
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
 const CashierView: React.FC = () => {
     const [visits, setVisits] = useState<VisitWithDetails[]>([]);
     const [selectedVisitId, setSelectedVisitId] = useState<string | null>(null);
@@ -176,6 +226,11 @@ const CashierView: React.FC = () => {
     
     const [isAuthenticated, setIsAuthenticated] = useState(sessionStorage.getItem('cashier_pin_verified') === 'true');
     const [correctPin, setCorrectPin] = useState<string | null>(null);
+
+    // Development-mode modal states
+    const [isConfirmingClose, setIsConfirmingClose] = useState(false);
+    const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
+    const isInIframe = useMemo(() => window.self !== window.top, []);
 
 
     useEffect(() => {
@@ -235,10 +290,8 @@ const CashierView: React.FC = () => {
         return visits.find(v => v.id === selectedVisitId) || null;
     }, [visits, selectedVisitId]);
 
-    const handleCloseVisit = async () => {
+    const proceedWithClosingVisit = async () => {
         if (!selectedVisitId) return;
-        if (!confirm(`Masa ${selectedVisit?.tables?.table_number} hesabını kapatmak istediğinizden emin misiniz?`)) return;
-
         try {
             await closeVisit(selectedVisitId);
             setVisits(prev => prev.filter(v => v.id !== selectedVisitId));
@@ -248,9 +301,28 @@ const CashierView: React.FC = () => {
         }
     };
 
+    const handleCloseVisit = () => {
+        if (!selectedVisitId) return;
+        
+        const message = `Masa ${selectedVisit?.tables?.table_number} hesabını kapatmak istediğinizden emin misiniz?`;
+
+        if (isInIframe) {
+            setIsConfirmingClose(true);
+        } else {
+            if (window.confirm(message)) {
+                proceedWithClosingVisit();
+            }
+        }
+    };
+
+
     const handlePrint = () => {
         if (!selectedVisit) return;
-        window.print();
+        if (isInIframe) {
+            setIsPrintPreviewOpen(true);
+        } else {
+            window.print();
+        }
     };
 
     const renderVisitList = () => (
@@ -335,7 +407,7 @@ const CashierView: React.FC = () => {
                         <i className="fas fa-check-circle mr-2"></i>Hesabı Kapat
                     </button>
                 </div>
-                <div className="hidden">
+                <div className="hidden print:block">
                     <PrintableReceipt visit={selectedVisit} total={total} />
                 </div>
             </div>
@@ -381,6 +453,24 @@ const CashierView: React.FC = () => {
                     )}
                 </main>
             )}
+
+            {/* Modals for Development Environment */}
+            <ConfirmationModal
+                isOpen={isConfirmingClose}
+                onClose={() => setIsConfirmingClose(false)}
+                onConfirm={() => {
+                    setIsConfirmingClose(false);
+                    proceedWithClosingVisit();
+                }}
+                title="Hesabı Kapat"
+                message={`Masa ${selectedVisit?.tables?.table_number} hesabını kapatmak istediğinizden emin misiniz?`}
+            />
+             <PrintPreviewModal
+                isOpen={isPrintPreviewOpen}
+                onClose={() => setIsPrintPreviewOpen(false)}
+                visit={selectedVisit}
+                total={calculateTotal(selectedVisit)}
+            />
         </div>
     );
 };

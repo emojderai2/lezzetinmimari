@@ -32,6 +32,15 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [route, setRoute] = useState<Route>({ path: 'main', params: [] });
+  const [isDevEnvironment, setIsDevEnvironment] = useState(false);
+
+  useEffect(() => {
+    // AI Studio gibi geliştirme ortamlarını tespit etmek için `window.aistudio` kontrolü yapılır.
+    // Bu, "Dev Switcher" butonunun sadece bu ortamlarda gösterilmesini sağlar.
+    if ((window as any).aistudio) {
+      setIsDevEnvironment(true);
+    }
+  }, []);
 
   useEffect(() => {
     const getRoute = (): Route => {
@@ -188,7 +197,7 @@ const App: React.FC = () => {
   return (
     <>
       {renderPage()}
-      <DevSwitcher />
+      {isDevEnvironment && <DevSwitcher />}
     </>
   );
 };
