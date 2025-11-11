@@ -1,15 +1,3 @@
-// FIX: Manually defined the structure of `import.meta.env` to resolve TypeScript errors
-// without relying on a triple-slash directive that was failing in the environment.
-// NOTE: This global declaration is no longer used but kept for context.
-declare global {
-  interface ImportMeta {
-    readonly env: {
-      readonly VITE_SUPABASE_URL: string;
-      readonly VITE_SUPABASE_ANON_KEY: string;
-    };
-  }
-}
-
 import { createClient } from '@supabase/supabase-js';
 import type { SiteConfig, MenuCategoryWithItems, CartItem, OrderWithDetails, VisitWithDetails, TableWithStatus, Table, DashboardStats, MenuItem, MenuCategory, RolePins } from '../types';
 
@@ -27,9 +15,10 @@ const LOCAL_DEV_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3
 // 2. YAYINLAMA (PRODUCTION): Siteniz yayınlandığında, hosting platformunuzun 
 //    (Netlify, Vercel vb.) "Environment Variables" bölümüne eklediğiniz `VITE_` 
 //    ile başlayan değişkenler otomatik olarak kullanılır.
-// FINAL FIX: Check if `import.meta.env` exists before trying to access it.
-const supabaseUrl = (typeof import.meta.env !== 'undefined' && import.meta.env.VITE_SUPABASE_URL) || LOCAL_DEV_SUPABASE_URL;
-const supabaseKey = (typeof import.meta.env !== 'undefined' && import.meta.env.VITE_SUPABASE_ANON_KEY) || LOCAL_DEV_SUPABASE_ANON_KEY;
+// Fix: Use type assertion to avoid TypeScript errors with `import.meta.env`
+// in environments where the type definitions for Vite are not available.
+const supabaseUrl = (typeof (import.meta as any).env !== 'undefined' && (import.meta as any).env.VITE_SUPABASE_URL) || LOCAL_DEV_SUPABASE_URL;
+const supabaseKey = (typeof (import.meta as any).env !== 'undefined' && (import.meta as any).env.VITE_SUPABASE_ANON_KEY) || LOCAL_DEV_SUPABASE_ANON_KEY;
 
 
 if (!supabaseUrl || !supabaseKey || supabaseUrl.includes("BURAYA")) {

@@ -16,6 +16,7 @@ import KitchenView from './components/KitchenView';
 import CashierView from './components/CashierView';
 import EmployeeHub from './components/EmployeeHub';
 import DevSwitcher from './components/DevSwitcher';
+import Chatbot from './components/Chatbot';
 
 
 // Assume AOS is globally available from index.html
@@ -189,6 +190,7 @@ const App: React.FC = () => {
               <Menu categories={menuCategories} isLoading={isLoading} />
             </main>
             <Footer />
+            {!isLoading && !error && <Chatbot />}
           </div>
         );
       }

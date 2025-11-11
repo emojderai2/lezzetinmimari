@@ -145,3 +145,10 @@ export interface SalesReportData {
         percentage: number;
     }[];
 }
+
+// Chatbot Type
+export interface Message {
+    id: number;
+    text: string;
+    sender: 'user' | 'bot';
+}
