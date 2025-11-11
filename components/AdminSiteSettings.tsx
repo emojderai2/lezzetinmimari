@@ -1,3 +1,5 @@
+
+
 import React, { useEffect, useState } from 'react';
 import type { SiteConfig } from '../types';
 import { fetchSiteConfig, updateSiteConfig } from '../services/supabaseService';

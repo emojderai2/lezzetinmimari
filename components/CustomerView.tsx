@@ -355,7 +355,7 @@ const CustomerView: React.FC<CustomerViewProps> = ({ tableId }) => {
                     <section 
                         key={category.id}
                         id={`category-${category.id}`}
-                        ref={el => (categoryRefs.current[category.id] = el)}
+                        ref={el => { categoryRefs.current[category.id] = el; }}
                         className="mb-8 pt-2"
                     >
                         <h2 className="text-3xl font-bold text-brand-dark mb-4 border-b-2 border-brand-gold pb-2">{category.name}</h2>

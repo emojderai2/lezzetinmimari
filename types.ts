@@ -1,3 +1,5 @@
+
+
 export interface SiteConfig {
   id: number;
   hero_title: string;
@@ -22,6 +24,7 @@ export interface SiteConfig {
   event_card3_image_url: string;
   countdown_enabled: boolean;
   countdown_target: string;
+  chatbot_enabled: boolean;
 }
 
 export interface MenuCategory {
@@ -146,9 +149,9 @@ export interface SalesReportData {
     }[];
 }
 
-// Chatbot Type
+// Fix: Add Message type for Chatbot
 export interface Message {
-    id: number;
-    text: string;
-    sender: 'user' | 'bot';
+  id: number;
+  text: string;
+  sender: 'user' | 'bot';
 }

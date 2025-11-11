@@ -45,9 +45,13 @@ export const fetchSiteConfig = async (): Promise<SiteConfig | null> => {
 };
 
 export const updateSiteConfig = async (updates: Partial<SiteConfig>): Promise<void> => {
+    // Destructure to remove 'id' from the update payload.
+    // The 'id' column is an identity column and cannot be updated.
+    const { id, ...updateData } = updates;
+
     const { error } = await supabase
         .from('site_config')
-        .update(updates)
+        .update(updateData) // Use the object without the 'id' field
         .eq('id', 1);
     
     if (error) {
