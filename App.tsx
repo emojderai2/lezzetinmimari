@@ -17,6 +17,8 @@ import KitchenView from './components/KitchenView';
 import CashierView from './components/CashierView';
 import EmployeeHub from './components/EmployeeHub';
 import DevSwitcher from './components/DevSwitcher';
+import { NotificationProvider } from './contexts/NotificationProvider';
+import Notification from './components/Notification';
 
 
 // Assume AOS is globally available from index.html
@@ -196,10 +198,11 @@ const App: React.FC = () => {
   };
 
   return (
-    <>
+    <NotificationProvider>
+      <Notification />
       {renderPage()}
       {isDevEnvironment && <DevSwitcher />}
-    </>
+    </NotificationProvider>
   );
 };
 
