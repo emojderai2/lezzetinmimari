@@ -220,6 +220,55 @@ export const revertOrderItemsStatus = async (orderId: string) => {
     }
 };
 
+export const subscribeToNewOrders = (callback: (payload: any) => void) => {
+    const channel = supabase.channel('new-orders');
+
+    channel
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, payload => {
+            callback(payload.new);
+        })
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    };
+};
+
+export const getVisitDetailsByOrderId = async (orderId: string): Promise<{ table_number: number } | null> => {
+    const { data, error } = await supabase
+        .from('orders')
+        .select(`
+            visits (
+                tables (
+                    table_number
+                )
+            )
+        `)
+        .eq('id', orderId)
+        .single();
+
+    if (error || !data) {
+        console.error('Error fetching visit details by order id:', error);
+        return null;
+    }
+
+    return data.visits?.tables || null;
+}
+
+export const subscribeToOrderUpdates = (callback: (payload: any) => void) => {
+    const channel = supabase.channel('order-updates');
+
+    channel
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, payload => {
+            callback(payload);
+        })
+        .subscribe();
+
+    return () => {
+        supabase.removeChannel(channel);
+    };
+};
+
 // Cashier View Functions
 export const fetchActiveVisits = async (): Promise<VisitWithDetails[]> => {
     const { data, error } = await supabase

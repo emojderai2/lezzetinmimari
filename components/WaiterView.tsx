@@ -7,7 +7,9 @@ import {
   createOrder,
   fetchVisibleMenuData,
   fetchRolePins,
+  subscribeToOrderUpdates,
 } from '../services/supabaseService';
+import { useNotification } from '../contexts/NotificationProvider';
 
 const formatCurrency = (price: number | null | undefined) => {
   if (price === null || price === undefined) return '';
@@ -373,6 +375,7 @@ const WaiterView: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [activeModal, setActiveModal] = useState<{ type: 'order' | 'manage'; table: TableWithStatus } | null>(null);
+    const { showNotification } = useNotification();
     
     const [isAuthenticated, setIsAuthenticated] = useState(sessionStorage.getItem('waiter_pin_verified') === 'true');
     const [correctPin, setCorrectPin] = useState<string | null>(null);
@@ -413,10 +416,22 @@ const WaiterView: React.FC = () => {
         if (!isAuthenticated) return;
 
         fetchAndSetTables();
-        const interval = setInterval(fetchAndSetTables, 10000); // Poll every 10 seconds
 
-        return () => clearInterval(interval);
-    }, [fetchAndSetTables, isAuthenticated]);
+        const unsubscribe = subscribeToOrderUpdates(async (payload) => {
+            if (payload.new.status === 'ready' && payload.old.status !== 'ready') {
+                const visitDetails = await getVisitDetailsByOrderId(payload.new.id);
+                if (visitDetails) {
+                    showNotification(`Masa ${visitDetails.table_number}'in siparişi hazır!`, 'success');
+                    // Refresh the table list to show the 'ready' status visually
+                    fetchAndSetTables();
+                }
+            }
+        });
+
+        return () => {
+            unsubscribe();
+        };
+    }, [isAuthenticated, fetchAndSetTables, showNotification]);
 
     const handlePinVerified = () => {
         sessionStorage.setItem('waiter_pin_verified', 'true');
