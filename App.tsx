@@ -17,6 +17,7 @@ import KitchenView from './components/KitchenView';
 import CashierView from './components/CashierView';
 import EmployeeHub from './components/EmployeeHub';
 import DevSwitcher from './components/DevSwitcher';
+import MenuView from './components/MenuView';
 
 
 // Assume AOS is globally available from index.html
@@ -134,6 +135,8 @@ const App: React.FC = () => {
       case 'menu':
         const tableId = route.params[0];
         return tableId ? <CustomerView tableId={tableId} /> : <div className="flex items-center justify-center h-screen"><div className="text-center p-8 bg-white shadow-lg rounded-lg">Masa Numarası Eksik. Lütfen QR kodu tekrar okutun.</div></div>;
+      case 'view-menu': // QR Code digital menu (read-only)
+        return <MenuView />;
       case 'waiter':
         return <WaiterView />;
       case 'kitchen':

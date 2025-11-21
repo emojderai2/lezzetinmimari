@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 
 const DevSwitcher: React.FC = () => {
@@ -38,6 +39,7 @@ const DevSwitcher: React.FC = () => {
                 <button onClick={() => navigate('')} className="w-full text-left p-2 rounded hover:bg-gray-100 text-sm">Ana Sayfa</button>
                 <button onClick={() => navigate('employee')} className="w-full text-left p-2 rounded hover:bg-gray-100 text-sm">Çalışan Hub</button>
                 <button onClick={() => navigate('admin')} className="w-full text-left p-2 rounded hover:bg-gray-100 text-sm">Yönetici Paneli</button>
+                <button onClick={() => navigate('view-menu')} className="w-full text-left p-2 rounded hover:bg-gray-100 text-sm bg-yellow-50 text-brand-dark font-semibold border border-yellow-200">Dijital Menü (View Only)</button>
                 <button onClick={() => navigate('waiter')} className="w-full text-left p-2 rounded hover:bg-gray-100 text-sm">Garson Ekranı</button>
                 <button onClick={() => navigate('kitchen')} className="w-full text-left p-2 rounded hover:bg-gray-100 text-sm">Mutfak Ekranı</button>
                 <button onClick={() => navigate('cashier')} className="w-full text-left p-2 rounded hover:bg-gray-100 text-sm">Kasa Ekranı</button>

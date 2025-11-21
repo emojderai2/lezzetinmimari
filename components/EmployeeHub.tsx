@@ -1,8 +1,10 @@
+
 import React from 'react';
 
 const EmployeeHub: React.FC = () => {
     
     const roleLinks = [
+        { hash: 'view-menu', icon: 'fa-book-open', title: 'Dijital Menü' },
         { hash: 'waiter', icon: 'fa-concierge-bell', title: 'Garson Ekranı' },
         { hash: 'kitchen', icon: 'fa-utensils', title: 'Mutfak Ekranı' },
         { hash: 'cashier', icon: 'fa-cash-register', title: 'Kasa Ekranı' },
